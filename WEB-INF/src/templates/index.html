@@ -1,0 +1,14 @@
+{#template master.html}
+
+{#def body}
+    <p>
+        {:if tests.length}
+            There are some tests.
+        {:e}
+            No tests were defined.
+        {/:if}
+    </p>
+    {:if isAdmin}
+        <p>Add more tests.</p>
+    {/:if}
+{/#def}

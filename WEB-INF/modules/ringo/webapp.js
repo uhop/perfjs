@@ -233,7 +233,7 @@ function main(path) {
         print("Usage:");
         print("", cmd, "[OPTIONS]", "[PATH]");
         print("Options:");
-        print(daemon.getHelp());
+        print(parser.help());
         require("ringo/shell").quit();
     }
 
@@ -262,8 +262,6 @@ function main(path) {
     daemon.start();
 }
 
-var started; // protect against restarting on reload
-if (require.main == module && !started) {
+if (require.main == module) {
     main();
-    started = true;
 }

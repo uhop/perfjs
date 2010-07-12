@@ -4,6 +4,7 @@
  */
 
 var system = require('system');
+var fs = require('fs');
 var engine = require('ringo/engine');
 
 export('load', 'normalize', 'catalog');
@@ -11,8 +12,7 @@ export('load', 'normalize', 'catalog');
 var catalog;
 
 function load() {
-    if (catalog || !require.paths) {
-        // we're either already set up or running in secure sandbox mode
+    if (catalog) {
         return;
     }
 
@@ -38,7 +38,7 @@ function load() {
                 var dir = directory.getChildRepository("engines");
                 for each (var engine in system.engines) {
                     var path = dir.getChildRepository(engine + "/lib");
-                    if (path.exists()) {
+                    if (fs.isDirectory(path)) {
                         require.paths.push(path);
                     }
                 }

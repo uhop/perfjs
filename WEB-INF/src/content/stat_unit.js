@@ -26,3 +26,20 @@ var StatUnit = exports.StatUnit = DB.Model("StatUnit", {
 StatUnit.prototype.toString = function(){
     return this.median + " (" + this.browser + " " + this.version + ")";
 }
+
+
+// augment TestGroup
+
+var oldRemove = TestUnit.prototype.remove;
+TestUnit.prototype.remove = function(){
+	StatUnit.all().filter("parent =", this.key()).fetch().forEach(function(statUnit){
+		statUnit.remove();
+	});
+	oldRemove.call(this);
+}
+
+TestUnit.prototype.removeStats = function(){
+	StatUnit.all().filter("parent =", this.key()).fetch().forEach(function(statUnit){
+		statUnit.remove();
+	});
+}

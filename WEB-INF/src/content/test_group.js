@@ -9,3 +9,20 @@ var TestGroup = exports.TestGroup = DB.Model("TestGroup", {
 TestGroup.prototype.toString = function(){
     return this.title;
 }
+
+
+// augment Test
+
+var oldRemove = Test.prototype.remove;
+Test.prototype.remove = function(){
+	TestGroup.all().filter("parent =", this.key()).fetch().forEach(function(testGroup){
+		testGroup.remove();
+	});
+	oldRemove.call(this);
+}
+
+Test.prototype.removeStats = function(){
+	TestGroup.all().filter("parent =", this.key()).fetch().forEach(function(testGroup){
+		testGroup.removeStats();
+	});
+}

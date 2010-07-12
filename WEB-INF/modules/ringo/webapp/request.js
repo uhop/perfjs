@@ -213,16 +213,14 @@ function Request(request) {
 /**
  * An HTTP session object. Properties of the session's data
  * object are persisted between requests of the same client.
- * @param request a JSGI or servlet request object
+ * @param request the JSGI request object
  */
 function Session(request) {
 
     var data;
-    var servletRequest = request instanceof javax.servlet.ServletRequest ? 
-            request : request.env.servlet_request;
 
     function getSession() {
-        return servletRequest.getSession();
+        return request.env.servlet_request.getSession();
     }
 
     /**

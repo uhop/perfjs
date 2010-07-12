@@ -15,7 +15,8 @@ var TYPES = require("google/appengine/api/datastore/types"),
     GeoPt = TYPES.GeoPt;
 
 var util = require("narwhal/util"),
-    utils = require("google/appengine/utils");
+    utils = require("google/appengine/utils"),
+	users = require("google/appengine/api/users");
 
 // property constructor helper.
 var _makeProperty = function (ctor, options) {
@@ -142,6 +143,8 @@ BooleanProperty.prototype.makeValueFromDatastore = function (value) {
     return value;
 }
 
+//var JLong = java.lang.Long;
+
 /**
  *
  */
@@ -166,7 +169,8 @@ IntegerProperty.prototype.getValueForDatastore = function (obj) {
         }
     } else {
 //      return new JInteger(val);  !!! < 2^31
-        return val;
+//        return new JLong(val);
+        return val; // FIXME: generates floats?
     }
 }
 
@@ -432,18 +436,23 @@ exports.Reference = ReferenceProperty;
 
 /**
  * A user with a Google account.
+ *
  * If autoCurrentUser is true, the property value is set to the currently
  * signed-in user whenever the model instance is stored in the datastore,
  * overwriting the property's previous value. This is useful for tracking which
  * user modifies a model instance.
+ *
  * If autoCurrentUserAdd is true, the property value is set to the currently
  * signed-in user the first time the model instance is stored in the datastore,
  * unless the property has already been assigned a value. This is useful for
  * tracking which user creates a model instance, which may not be the same
  * user that modifies it later.
+ *
  * UserProperty does not accept a default value. Default values are set when
  * the model class is first imported, and with import caching may not be the
  * currently signed-in user.
+ *
+ * @constructor
  */
 var UserProperty = exports.UserProperty = function (options) {
     return _makeProperty(UserProperty, options);
@@ -455,11 +464,23 @@ UserProperty.prototype.init = function (constructor) {
 }
 
 UserProperty.prototype.getValueForDatastore = function (obj) {
-    return new Error("not implemented");
+    if ((this.autoCurrentUser) || (this.autoCurrentUserAdd && (!obj.isSaved()))) {
+        var juser = users.UserService.getCurrentUser();
+        obj[this.name] = users.User.fromJavaUser(juser);
+        return juser;
+    }
+
+    var val = obj[this.name];
+
+    if (val == undefined) {
+        return null;
+    } else {
+        return val.toJavaUser();
+    }
 }
 
 UserProperty.prototype.makeValueFromDatastore = function (value) {
-    return new Error("not implemented");
+    return users.User.fromJavaUser(value);
 }
 
 /**
