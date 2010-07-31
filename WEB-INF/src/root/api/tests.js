@@ -24,12 +24,14 @@ function GET(env){
 
 	// list available tests
 	var tests = Test.all().fetch();
-	return Response.json(tests.map(function(test){
-		return {
-			uri: "/api/tests/?key=" + test.key(),
-			title: test.title
-		};
-	}));
+	return {
+		json: tests.map(function(test){
+			return {
+				uri: "/api/tests/?key=" + test.key(),
+				title: test.title
+			};
+		})
+	};
 }
 
 function POST(env){
@@ -44,7 +46,9 @@ function POST(env){
         return Response.json({errors: errors});
     }
 
-    return Response.json({uri: "/api/tests/?key=" + test.key()});
+    return {
+		json: {uri: "/api/tests/?key=" + test.key()}
+	};
 }
 
 function DELETE(env){

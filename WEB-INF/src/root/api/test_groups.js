@@ -15,21 +15,25 @@ function GET(env){
 		if(!testGroup){
 			return Response.notFound();
 		}
-		return Response.json({
-			uri:    "/api/test_groups/?key=" + testGroup.key(),
-			parent: "/api/tests/?key=" + testGroup.parent.key(),
-			title:  testGroup.title
-		});
+		return {
+			json: {
+				uri:    "/api/test_groups/?key=" + testGroup.key(),
+				parent: "/api/tests/?key=" + testGroup.parent.key(),
+				title:  testGroup.title
+			}
+		};
 	}
 
 	// list available tests
-	return Response.json(TestGroup.all().fetch().map(function(testGroup){
-		return {
-			uri:    "/api/test_groups/?key=" + testGroup.key(),
-			parent: "/api/tests/?key=" + testGroup.parent.key(),
-			title:  testGroup.title
-		};
-	}));
+	return {
+		json: TestGroup.all().fetch().map(function(testGroup){
+			return {
+				uri:    "/api/test_groups/?key=" + testGroup.key(),
+				parent: "/api/tests/?key=" + testGroup.parent.key(),
+				title:  testGroup.title
+			};
+		})
+	};
 }
 
 function POST(env){
@@ -44,7 +48,9 @@ function POST(env){
         return Response.json({errors: errors});
     }
 
-    return Response.json({uri: "/api/test_groups/?key=" + testGroup.key()});
+    return {
+		json: {uri: "/api/test_groups/?key=" + testGroup.key()}
+	};
 }
 
 function DELETE(env){

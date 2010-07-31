@@ -13,47 +13,51 @@ function GET(env){
 		if(!statUnit){
 			return Response.notFound();
 		}
-		return Response.json({
-			uri:           "/api/stat_units/?key=" + statUnit.key(),
-			parent:        "/api/test_units/?key=" + statUnit.parent.key(),
-			timestamp:     statUnit.timestamp,
-			userAgent:     statUnit.userAgent,
-			browser:       statUnit.browser,
-			version:       statUnit.version,
-			repetitions:   statUnit.repetitions,
-			length:        statUnit.length,
-			average:       statUnit.average,
-			minimum:       statUnit.minimum,
-			maximum:       statUnit.maximum,
-			median:        statUnit.median,
-			lowerQuartile: statUnit.lowerQuartile,
-			upperQuartile: statUnit.upperQuartile,
-			firstDecile:   statUnit.firstDecile,
-			lastDecile:    statUnit.lastDecile
-		});
+		return {
+			json: {
+				uri:           "/api/stat_units/?key=" + statUnit.key(),
+				parent:        "/api/test_units/?key=" + statUnit.parent.key(),
+				timestamp:     statUnit.timestamp,
+				userAgent:     statUnit.userAgent,
+				browser:       statUnit.browser,
+				version:       statUnit.version,
+				repetitions:   statUnit.repetitions,
+				length:        statUnit.length,
+				average:       statUnit.average,
+				minimum:       statUnit.minimum,
+				maximum:       statUnit.maximum,
+				median:        statUnit.median,
+				lowerQuartile: statUnit.lowerQuartile,
+				upperQuartile: statUnit.upperQuartile,
+				firstDecile:   statUnit.firstDecile,
+				lastDecile:    statUnit.lastDecile
+			}
+		};
 	}
 
 	// list available tests
-	return Response.json(StatUnit.all().fetch().map(function(statUnit){
-		return {
-			uri:           "/api/stat_units/?key=" + statUnit.key(),
-			parent:        "/api/test_units/?key=" + statUnit.parent.key(),
-			timestamp:     statUnit.timestamp,
-			userAgent:     statUnit.userAgent,
-			browser:       statUnit.browser,
-			version:       statUnit.version,
-			repetitions:   statUnit.repetitions,
-			length:        statUnit.length,
-			average:       statUnit.average,
-			minimum:       statUnit.minimum,
-			maximum:       statUnit.maximum,
-			median:        statUnit.median,
-			lowerQuartile: statUnit.lowerQuartile,
-			upperQuartile: statUnit.upperQuartile,
-			firstDecile:   statUnit.firstDecile,
-			lastDecile:    statUnit.lastDecile
-		};
-	}));
+	return {
+		json: StatUnit.all().fetch().map(function(statUnit){
+			return {
+				uri:           "/api/stat_units/?key=" + statUnit.key(),
+				parent:        "/api/test_units/?key=" + statUnit.parent.key(),
+				timestamp:     statUnit.timestamp,
+				userAgent:     statUnit.userAgent,
+				browser:       statUnit.browser,
+				version:       statUnit.version,
+				repetitions:   statUnit.repetitions,
+				length:        statUnit.length,
+				average:       statUnit.average,
+				minimum:       statUnit.minimum,
+				maximum:       statUnit.maximum,
+				median:        statUnit.median,
+				lowerQuartile: statUnit.lowerQuartile,
+				upperQuartile: statUnit.upperQuartile,
+				firstDecile:   statUnit.firstDecile,
+				lastDecile:    statUnit.lastDecile
+			};
+		})
+	};
 }
 
 function POST(env){
@@ -72,7 +76,9 @@ function POST(env){
         return Response.json({errors: errors});
     }
 
-    return Response.json({uri: "/api/stat_units/?key=" + statUnit.key()});
+    return {
+		json: {uri: "/api/stat_units/?key=" + statUnit.key()}
+	};
 }
 
 function DELETE(env){

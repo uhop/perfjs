@@ -14,23 +14,27 @@ function GET(env){
 		if(!testUnit){
 			return Response.notFound();
 		}
-		return Response.json({
-			uri:    "/api/test_units/?key=" + testUnit.key(),
-			parent: "/api/test_groups/?key=" + testUnit.parent.key(),
-			title:  testUnit.title,
-			code:   testUnit.code
-		});
+		return {
+			json: {
+				uri:    "/api/test_units/?key=" + testUnit.key(),
+				parent: "/api/test_groups/?key=" + testUnit.parent.key(),
+				title:  testUnit.title,
+				code:   testUnit.code
+			}
+		};
 	}
 
 	// list available tests
-	return Response.json(TestUnit.all().fetch().map(function(testUnit){
-		return {
-			uri:    "/api/test_units/?key=" + testUnit.key(),
-			parent: "/api/test_groups/?key=" + testUnit.parent.key(),
-			title:  testUnit.title,
-			code:   testUnit.code
-		};
-	}));
+	return {
+		json: TestUnit.all().fetch().map(function(testUnit){
+			return {
+				uri:    "/api/test_units/?key=" + testUnit.key(),
+				parent: "/api/test_groups/?key=" + testUnit.parent.key(),
+				title:  testUnit.title,
+				code:   testUnit.code
+			};
+		})
+	};
 }
 
 function POST(env){
@@ -45,7 +49,9 @@ function POST(env){
         return Response.json({errors: errors});
     }
 
-    return Response.json({uri: "/api/test_units/?key=" + testUnit.key()});
+    return {
+		json: {uri: "/api/test_units/?key=" + testUnit.key()}
+	};
 }
 
 function DELETE(env){
