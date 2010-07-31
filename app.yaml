@@ -1,0 +1,19 @@
+application: stat-collector
+version: 1.2
+runtime: java
+public_root: /root
+
+resource_files:
+  - exclude: README.md
+  - exclude: package.json 
+
+handlers:
+  - url: /*
+    servlet: org.ringojs.jsgi.JsgiServlet
+    name: ringo
+    init_params:  
+        module-path: src
+        config: main
+        app: app 
+        optlevel: -1
+        ringo-home: /
