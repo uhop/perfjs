@@ -16,10 +16,13 @@ function GET(env){
 		if(!test){
 			return Response.notFound();
 		}
-		return Response.json({
-			uri: "/api/tests/?key=" + test.key(),
-			title: test.title
-		});
+		return {
+			json: {
+				uri: "/api/tests/?key=" + test.key(),
+				title: test.title,
+				description: test.description
+			}
+		};
 	}
 
 	// list available tests
@@ -28,7 +31,8 @@ function GET(env){
 		json: tests.map(function(test){
 			return {
 				uri: "/api/tests/?key=" + test.key(),
-				title: test.title
+				title: test.title,
+				description: test.description
 			};
 		})
 	};

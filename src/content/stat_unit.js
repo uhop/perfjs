@@ -25,8 +25,19 @@ var StatUnit = exports.StatUnit = DB.Model("StatUnit", {
 
 StatUnit.prototype.toString = function(){
     return this.median + " (" + this.browser + " " + this.version + ")";
-}
+};
 
+StatUnit.prototype.api_uri = function(){
+	return "/api/stat_units/?key=" + this.key();
+};
+
+StatUnit.prototype.view_uri = function(){
+	return "/view/stat_unit/?key=" + this.key();
+};
+
+StatUnit.prototype.edit_uri = function(){
+	return "/admin/stat_unit/?key=" + this.key();
+};
 
 // augment TestGroup
 
@@ -36,10 +47,10 @@ TestUnit.prototype.remove = function(){
 		statUnit.remove();
 	});
 	oldRemove.call(this);
-}
+};
 
 TestUnit.prototype.removeStats = function(){
 	StatUnit.all().filter("parent =", this.key()).fetch().forEach(function(statUnit){
 		statUnit.remove();
 	});
-}
+};

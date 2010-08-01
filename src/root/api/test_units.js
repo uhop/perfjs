@@ -19,7 +19,9 @@ function GET(env){
 				uri:    "/api/test_units/?key=" + testUnit.key(),
 				parent: "/api/test_groups/?key=" + testUnit.parent.key(),
 				title:  testUnit.title,
-				code:   testUnit.code
+				description: testUnit.description,
+				code:   testUnit.code,
+				includes: testUnit.includes
 			}
 		};
 	}
@@ -31,7 +33,9 @@ function GET(env){
 				uri:    "/api/test_units/?key=" + testUnit.key(),
 				parent: "/api/test_groups/?key=" + testUnit.parent.key(),
 				title:  testUnit.title,
-				code:   testUnit.code
+				description: testUnit.description,
+				code:   testUnit.code,
+				includes: testUnit.includes
 			};
 		})
 	};

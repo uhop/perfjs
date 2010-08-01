@@ -1,7 +1,8 @@
 var Request = require("nitro/request").Request,
-    Response = require("nitro/response").Response;
+    Response = require("nitro/response").Response,
+	users = require("google/appengine/api/users");
 
-exports.Json = exports.middleware = function(app){
+exports.Json = function(app){
     return function (env) {
 	    var callback = new Request(env).params.callback;
 
@@ -16,4 +17,31 @@ exports.Json = exports.middleware = function(app){
 
         return response;
     }
-}
+};
+
+exports.AddUser = function(app){
+    return function (env) {
+		var user = users.getCurrentUser(), path;
+		if(!user){
+			path = new Request(env).path;
+		}
+		
+        var response = app(env);
+
+        if(response.data && !("user" in response.data)){
+			if(user){
+				response.data.user = {
+					isAdmin:    users.isCurrentUserAdmin(),
+					nickname:   user.nickname,
+					logout_uri: users.createLogoutURL("/")
+				};
+			}else{
+				response.data.user = {
+					login_uri: users.createLoginURL(path)
+				};
+			}
+        }
+
+        return response;
+    }
+};

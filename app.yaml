@@ -1,7 +1,9 @@
 application: stat-collector
-version: 1.2
+version: 1-2-test
 runtime: java
 public_root: /root
+#default_expiration: "15d"
+#sessions_enabled: true
 
 resource_files:
   - exclude: README.md
@@ -12,8 +14,8 @@ handlers:
     servlet: org.ringojs.jsgi.JsgiServlet
     name: ringo
     init_params:  
-        module-path: src
-        config: main
-        app: app 
-        optlevel: -1
-        ringo-home: /
+      module-path: src
+      config: main
+      app: app 
+      optlevel: -1
+      ringo-home: /

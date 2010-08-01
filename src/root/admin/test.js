@@ -15,4 +15,4 @@ exports.GET = function(env){
 			})
 		}
 	};
-};
+}

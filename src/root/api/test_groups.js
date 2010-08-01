@@ -19,7 +19,8 @@ function GET(env){
 			json: {
 				uri:    "/api/test_groups/?key=" + testGroup.key(),
 				parent: "/api/tests/?key=" + testGroup.parent.key(),
-				title:  testGroup.title
+				title:  testGroup.title,
+				description: testGroup.description
 			}
 		};
 	}
@@ -30,7 +31,8 @@ function GET(env){
 			return {
 				uri:    "/api/test_groups/?key=" + testGroup.key(),
 				parent: "/api/tests/?key=" + testGroup.parent.key(),
-				title:  testGroup.title
+				title:  testGroup.title,
+				description: testGroup.description
 			};
 		})
 	};

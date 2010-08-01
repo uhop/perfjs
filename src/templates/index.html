@@ -1,14 +1,27 @@
 {#template master.html}
 
 {#def body}
-    <p>
-        {:if tests.length}
-            There are some tests.
-        {:e}
-            No tests were defined.
-        {/:if}
-    </p>
-    {:if isAdmin}
+
+    <p>{:if user.nickname}Hello <strong>{=user.nickname}</strong>! (<a href="{=user.logout_uri}">logout</a>){:e}Anonymous user (<a href="{=user.login_uri}">login</a>){/:if}</p>
+
+    {:if user.isAdmin}
         <p>Add more tests.</p>
     {/:if}
+    <p>
+        {:if tests.length}
+            <ul>
+                {:r tests}
+                    <li>
+                        <a href="{=view_url}">{=title}</a> &mdash;
+                        {:if user.isAdmin}
+                            <a href="{=edit_url}">Edit</a> &mdash;
+                        {/:if}
+                        <span>{=description}</span>
+                    </li>
+                {/:r tests}
+            </ul>
+        {:e}
+            No tests are defined yet.
+        {/:if}
+    </p>
 {/#def}
