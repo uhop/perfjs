@@ -1,6 +1,6 @@
 var Test = require("content/test").Test;
 
-exports.GET = function(env){
+exports.GET = function(request){
 	// list available tests
 	return {
 		data: {

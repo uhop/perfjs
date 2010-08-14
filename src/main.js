@@ -1,9 +1,15 @@
-var Setup = require("nitro/middleware/setup").Setup,
-    Path = require("nitro/middleware/path").Path,
-    Errors = require("nitro/middleware/errors").Errors,
-    Render = require("nitro/middleware/render").Render,
-    Dispatch = require("nitro/middleware/dispatch").Dispatch,
-	Json = require("middleware").Json,
-	AddUser = require("middleware").AddUser;
+var Combine = require("middleware").Combine;
 
-exports.app = Setup(Path(Errors(Render(AddUser(Json(Dispatch({dispatchRoot: "src/root"}))), {templateRoot: "src/templates"}))));
+function getNitroMiddleware(name){
+    return require("nitro/middleware/" + name).middleware;
+}
+
+exports.app = Combine([
+    getNitroMiddleware("setup"),
+    getNitroMiddleware("path"),
+    getNitroMiddleware("errors"),
+    [getNitroMiddleware("render"), {templateRoot: "src/templates"}],
+    require("./middleware").AddUser,
+    require("./middleware").Json,
+    [getNitroMiddleware("dispatch"), {dispatchRoot: "src/root"}]
+]);
