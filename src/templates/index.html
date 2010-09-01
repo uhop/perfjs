@@ -2,7 +2,7 @@
 
 {#def body}
 
-    <p>{:if user.nickname}Hello <strong>{=user.nickname}</strong>! (<a href="{=user.logout_uri}">logout</a>){:e}Anonymous user (<a href="{=user.login_uri}">login</a>){/:if}</p>
+    <p>{:if user.nickname}Hello <strong>{=user.nickname}</strong>! (<a href="{=user.logoutUri}">logout</a>){:e}Anonymous user (<a href="{=user.loginUri}">login</a>){/:if}</p>
 
     {:if user.isAdmin}
         <p>Add more tests.</p>
@@ -12,9 +12,9 @@
             <ul>
                 {:r tests}
                     <li>
-                        <a href="{=view_url}">{=title}</a> &mdash;
+                        <a href="{=publicUri}">{=title}</a> &mdash;
                         {:if user.isAdmin}
-                            <a href="{=edit_url}">Edit</a> &mdash;
+                            <a href="{=uri}">Edit</a> &mdash;
                         {/:if}
                         <span>{=description}</span>
                     </li>

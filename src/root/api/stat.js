@@ -1,90 +1,60 @@
 var Response = require("nitro/response").Response,
-	decorators = require("decorators");
+    users = require("google/appengine/api/users"),
+    allowedUser = require("utils").allowedUser,
+	decorators = require("decorators"),
+    utils = require("utils");
 
-var Stat = require("content/stat").Stat,
+var Stat = require("content/models").Stat,
     Form = require("google/appengine/ext/db/forms").ModelForm(Stat);
 
-function GET(request){
-    var params = request.params;
-
-	if(params.key){
-		var stat = Stat.get(params.key);
-		if(stat){
-            return {
-                json: {
-                    uri:           "/api/stat/?key=" + stat.key(),
-                    parent:        "/api/unit/?key=" + stat.parent.key(),
-                    timestamp:     stat.timestamp,
-                    userAgent:     stat.userAgent,
-                    browser:       stat.browser,
-                    version:       stat.version,
-                    repetitions:   stat.repetitions,
-                    length:        stat.length,
-                    average:       stat.average,
-                    minimum:       stat.minimum,
-                    maximum:       stat.maximum,
-                    median:        stat.median,
-                    lowerQuartile: stat.lowerQuartile,
-                    upperQuartile: stat.upperQuartile,
-                    firstDecile:   stat.firstDecile,
-                    lastDecile:    stat.lastDecile
-                }
-            };
-        }
-	}
-    return Response.notFound();
-}
+var GET = utils.standardGet(Stat);
 
 function POST(request){
-    var params = request.params,
+    var user = users.getCurrentUser(),
         stat = new Stat();
-
-    var form = new Form(params, {instance: stat});
-
+    stat.userId = user && user.userId || "";
+    var form = new Form(request.postParams, {instance: stat});
     try{
         form.put();
     }catch (errors){
-        return Response.json({errors: errors});
+        return {json: {errors: errors}};
     }
-
-    return {
-		json: {uri: "/api/stat/?key=" + stat.key()}
-	};
+    return {json: {uri: stat.uri()}};
 }
 
 function PUT(request){
-    var params = request.params,
-        stat = Stat.get(params.key);
+    var stat = Stat.get(request.pathInfo);
 
     if(!stat){
         return Response.notFound();
     }
+    if(!allowedUser(stat.userId)){
+        return Response.unauthorized();
+    }
 
-    var form = new Form(params, {instance: stat});
+    var form = new Form(request.postParams, {instance: stat});
 
     try{
         form.put();
     }catch (errors){
-        return Response.json({errors: errors});
+        return {json: {errors: errors}};
     }
-
-    return {
-		json: {uri: "/api/stat/?key=" + stat.key()}
-	};
+    return {json: {uri: stat.uri()}};
 }
 
 function DELETE(request){
-    var params = request.params,
-        stat = Stat.get(params.key);
-
-    if(stat){
-        stat.remove();
-        return Response.ok();
+    var stat = Stat.get(request.pathInfo);
+    if(!stat){
+        return Response.notFound();
     }
-    return Response.notFound();
+    if(!allowedUser(stat.userId)){
+        return Response.unauthorized();
+    }
+    stat.remove();
+    return Response.ok();
 }
 
 exports.GET    = GET;
 exports.POST   = POST;
-exports.PUT    = decorators.onlyForAdmins(PUT);
-exports.DELETE = decorators.onlyForAdmins(DELETE);
+exports.PUT    = decorators.onlyForRegisteredUsers(PUT);
+exports.DELETE = decorators.onlyForRegisteredUsers(DELETE);

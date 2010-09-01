@@ -1,80 +1,59 @@
 var Response = require("nitro/response").Response,
-	decorators = require("decorators");
+    users = require("google/appengine/api/users"),
+    allowedUser = require("utils").allowedUser,
+	decorators = require("decorators"),
+    utils = require("utils");
 
-var Unit = require("content/unit").Unit,
+var Unit = require("content/models").Unit,
     Form = require("google/appengine/ext/db/forms").ModelForm(Unit);
 
-function GET(request){
-    var params = request.params;
-
-	if(params.key){
-		var unit = Unit.get(params.key);
-		if(unit){
-            return {
-                json: {
-                    uri:    "/api/unit/?key=" + unit.key(),
-                    parent: "/api/group/?key=" + unit.parent.key(),
-                    title:  unit.title,
-                    description: unit.description,
-                    code:   unit.code,
-                    includes: unit.includes
-                }
-            };
-        }
-	}
-    return Response.notFound();
-}
+var GET = utils.standardGet(Unit);
 
 function POST(request){
-    var params = request.params,
-        unit = new Unit();
-
-    var form = new Form(params, {instance: unit});
-
+    var unit = new Unit();
+    unit.userId = users.getCurrentUser().userId;
+    var form = new Form(request.postParams, {instance: unit});
     try{
         form.put();
     }catch (errors){
-        return Response.json({errors: errors});
+        return {json: {errors: errors}};
     }
-
-    return {
-		json: {uri: "/api/unit/?key=" + unit.key()}
-	};
+    return {json: {uri: unit.uri()}};
 }
 
 function PUT(request){
-    var params = request.params,
-        unit = Unit.get(params.key);
+    var unit = Unit.get(request.pathInfo);
 
     if(!unit){
         return Response.notFound();
     }
+    if(!allowedUser(unit.userId)){
+        return Response.unauthorized();
+    }
 
-    var form = new Form(params, {instance: unit});
+    var form = new Form(request.postParams, {instance: unit});
 
     try{
         form.put();
     }catch (errors){
-        return Response.json({errors: errors});
+        return {json: {errors: errors}};
     }
-
-    return {
-		json: {uri: "/api/unit/?key=" + unit.key()}
-	};
+    return {json: {uri: unit.uri()}};
 }
 
 function DELETE(request){
-    var params = request.params,
-        unit = Unit.get(params.key);
-
-    if(unit){
-        unit.remove();
-        return Response.ok();
+    var unit = Unit.get(request.pathInfo);
+    if(!unit){
+        return Response.notFound();
     }
-    return Response.notFound();
+    if(!allowedUser(unit.userId)){
+        return Response.unauthorized();
+    }
+    unit.remove();
+    return Response.ok();
 }
 
 exports.GET    = GET;
-exports.POST   = decorators.onlyForAdmins(POST);
-exports.PUT    = decorators.onlyForAdmins(PUT);
-exports.DELETE = decorators.onlyForAdmins(DELETE);
+exports.POST   = decorators.onlyForRegisteredUsers(POST);
+exports.PUT    = decorators.onlyForRegisteredUsers(PUT);
+exports.DELETE = decorators.onlyForRegisteredUsers(DELETE);

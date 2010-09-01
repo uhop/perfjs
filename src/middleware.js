@@ -29,13 +29,13 @@ exports.AddUser = function(app){
         if(response.data && !("user" in response.data)){
 			if(user){
 				response.data.user = {
-					isAdmin:    users.isCurrentUserAdmin(),
-					nickname:   user.nickname,
-					logout_uri: users.createLogoutURL("/")
+					isAdmin:   users.isCurrentUserAdmin(),
+					nickname:  user.nickname,
+					logoutUri: users.createLogoutURL("/")
 				};
 			}else{
 				response.data.user = {
-					login_uri: users.createLoginURL(path)
+					loginUri: users.createLoginURL(path)
 				};
 			}
         }
@@ -55,7 +55,7 @@ function getMiddleware(item){
     return item;
 }
 
-exports.Combine = function(list){
+exports.makeStack = function(list){
     var len = list.length;
 
     // the unlikely corner case: no middleware

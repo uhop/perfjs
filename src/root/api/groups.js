@@ -1,17 +1,15 @@
-var Group = require("content/group").Group,
+var Test = require("content/models").Test,
+    Group = require("content/models").Group,
+    toJson = require("utils"),
+    getItems = require("utils").getItems,
     groupApi = require("./group");
 
 function GET(request){
-	// list available tests
+    var rsp = getItems(request.queryParams.test, Test, "getGroups");
+    if(rsp){ return rsp; }
+	// list available groups
 	return {
-		json: Group.all().fetch().map(function(group){
-			return {
-				uri:    "/api/group/?key=" + group.key(),
-				parent: "/api/test/?key=" + group.parent.key(),
-				title:  group.title,
-				description: group.description
-			};
-		})
+		json: Group.all().fetch().map(toJson)
 	};
 }
 

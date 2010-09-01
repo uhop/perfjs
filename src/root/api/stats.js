@@ -1,29 +1,21 @@
-var Stat = require("content/stat").Stat,
+var Test = require("content/models").Test,
+    Group = require("content/models").Group,
+    Unit = require("content/models").Unit,
+    Stat = require("content/models").Stat,
+    toJson = require("utils"),
+    getItems = require("utils").getItems,
     statApi = require("./stat");
 
 function GET(request){
-    // list available tests
+    var rsp = getItems(request.queryParams.unit, Unit, "getStats");
+    if(rsp){ return rsp; }
+    rsp = getItems(request.queryParams.group, Group, "getStats");
+    if(rsp){ return rsp; }
+    rsp = getItems(request.queryParams.test, Test, "getStats");
+    if(rsp){ return rsp; }
+    // list available stats
     return {
-        json: Stat.all().fetch().map(function(stat){
-            return {
-                uri:           "/api/stat/?key=" + stat.key(),
-                parent:        "/api/unit/?key=" + stat.parent.key(),
-                timestamp:     stat.timestamp,
-                userAgent:     stat.userAgent,
-                browser:       stat.browser,
-                version:       stat.version,
-                repetitions:   stat.repetitions,
-                length:        stat.length,
-                average:       stat.average,
-                minimum:       stat.minimum,
-                maximum:       stat.maximum,
-                median:        stat.median,
-                lowerQuartile: stat.lowerQuartile,
-                upperQuartile: stat.upperQuartile,
-                firstDecile:   stat.firstDecile,
-                lastDecile:    stat.lastDecile
-            };
-        })
+        json: Stat.all().fetch().map(toJson)
     };
 }
 

@@ -1,77 +1,70 @@
 var Response = require("nitro/response").Response,
-	decorators = require("decorators");
+    users = require("google/appengine/api/users"),
+    allowedUser = require("utils").allowedUser,
+	decorators = require("decorators"),
+    utils = require("utils");
 
-var Test = require("content/test").Test,
+var Test = require("content/models").Test,
     Form = require("google/appengine/ext/db/forms").ModelForm(Test);
 
-function GET(request){
-    var params = request.params;
+var GET = utils.standardGet(Test);
 
-	if(params.key){
-		var test = Test.get(params.key);
-		if(test){
-            return {
-                json: {
-                    uri: "/api/test/?key=" + test.key(),
-                    title: test.title,
-                    description: test.description
-                }
-            };
-        }
-	}
-    return Response.notFound();
+function testAndCreate(request){
+    var slug = request.postParams.slug,
+        dups = Test.all().filter("slug =", slug).fetch();
+    if(dups.length){
+        throw Error("slug is not unique");
+    }
+    var test = new Test(),
+        user = users.getCurrentUser();
+    test.userId = user.userId;
+    test.userName = user.nickname;
+    var form = new Form(request.postParams, {instance: test});
+    form.put();
+    return test;
 }
 
 function POST(request){
-    var params = request.params,
-        test = new Test();
-
-    var form = new Form(params, {instance: test});
-
     try{
-        form.put();
+        var test = db.runInTransaction(testAndCreate, request);
     }catch (errors){
-        return Response.json({errors: errors});
+        return {json: {errors: errors}};
     }
-
-    return {
-		json: {uri: "/api/test/?key=" + test.key()}
-	};
+    return {json: {uri: test.uri()}};
 }
 
 function PUT(request){
-    var params = request.params,
-        test = Test.get(params.key);
+    var test = Test.get(request.pathInfo);
 
     if(!test){
         return Response.notFound();
     }
+    if(!allowedUser(test.userId)){
+        return Response.unauthorized();
+    }
 
-    var form = new Form(params, {instance: test});
-
+    var form = new Form(request.postParams, {instance: test});
     try{
         form.put();
     }catch (errors){
-        return Response.json({errors: errors});
+        return {json: {errors: errors}};
     }
-
-    return {
-		json: {uri: "/api/test/?key=" + test.key()}
-	};
+    return {json: {uri: test.uri()}};
 }
 
 function DELETE(request){
-    var params = request.params,
-        test = Test.get(params.key);
-
-    if(test){
-        test.remove();
-        return Response.ok();
+    var test = Test.get(request.pathInfo);
+    if(!test){
+        return Response.notFound();
     }
-    return Response.notFound();
+    if(!allowedUser(test.userId)){
+        return Response.unauthorized();
+    }
+    test.remove();
+    return Response.ok();
 }
 
 exports.GET    = GET;
-exports.POST   = decorators.onlyForAdmins(POST);
-exports.PUT    = decorators.onlyForAdmins(PUT);
-exports.DELETE = decorators.onlyForAdmins(DELETE);
+exports.POST   = decorators.onlyForRegisteredUsers(POST);
+exports.PUT    = decorators.onlyForRegisteredUsers(PUT);
+exports.DELETE = decorators.onlyForRegisteredUsers(DELETE);

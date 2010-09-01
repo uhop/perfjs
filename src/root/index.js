@@ -1,18 +1,11 @@
-var Test = require("content/test").Test;
+var Test = require("content/models").Test,
+    utils = require("utils");
 
 exports.GET = function(request){
 	// list available tests
 	return {
 		data: {
-			create_uri: "/admin/test",
-			tests: Test.all().fetch().map(function(test){
-				return {
-					title:       test.title,
-					description: test.description,
-					view_uri:    test.view_uri(),
-					edit_uri:    test.edit_uri()
-				};
-			})
+			tests: Test.all().fetch().map(utils.toJson)
 		}
 	};
 };

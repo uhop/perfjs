@@ -1,78 +1,59 @@
 var Response = require("nitro/response").Response,
-	decorators = require("decorators");
+    users = require("google/appengine/api/users"),
+    allowedUser = require("utils").allowedUser,
+	decorators = require("decorators"),
+    utils = require("utils");
 
-var Group = require("content/group").Group,
+var Group = require("content/models").Group,
     Form = require("google/appengine/ext/db/forms").ModelForm(Group);
 
-function GET(request){
-    var params = request.params;
-
-	if(params.key){
-		var group = Group.get(params.key);
-		if(group){
-            return {
-                json: {
-                    uri:    "/api/group/?key=" + group.key(),
-                    parent: "/api/test/?key=" + group.parent.key(),
-                    title:  group.title,
-                    description: group.description
-                }
-            };
-        }
-	}
-    return Response.notFound();
-}
+var GET = utils.standardGet(Group);
 
 function POST(request){
-    var params = request.params,
-        group = new Group();
-
-    var form = new Form(params, {instance: group});
-
+    var group = new Group();
+    group.userId = users.getCurrentUser().userId;
+    var form = new Form(request.postParams, {instance: group});
     try{
         form.put();
     }catch (errors){
-        return Response.json({errors: errors});
+        return {json: {errors: errors}};
     }
-
-    return {
-		json: {uri: "/api/group/?key=" + group.key()}
-	};
+    return {json: {uri: group.uri()}};
 }
 
 function PUT(request){
-    var params = request.params,
-        group = Group.get(params.key);
+    var group = Group.get(request.pathInfo);
 
     if(!group){
         return Response.notFound();
     }
+    if(!allowedUser(group.userId)){
+        return Response.unauthorized();
+    }
 
-    var form = new Form(params, {instance: group});
+    var form = new Form(request.postParams, {instance: group});
 
     try{
         form.put();
     }catch (errors){
-        return Response.json({errors: errors});
+        return {json: {errors: errors}};
     }
-
-    return {
-		json: {uri: "/api/group/?key=" + group.key()}
-	};
+    return {json: {uri: group.uri()}};
 }
 
 function DELETE(request){
-    var params = request.params,
-        group = Group.get(params.key);
-
-    if(group){
-        group.remove();
-        return Response.ok();
+    var group = Group.get(request.pathInfo);
+    if(!group){
+        return Response.notFound();
     }
-    return Response.notFound();
+    if(!allowedUser(group.userId)){
+        return Response.unauthorized();
+    }
+    group.remove();
+    return Response.ok();
 }
 
 exports.GET    = GET;
-exports.POST   = decorators.onlyForAdmins(POST);
-exports.PUT    = decorators.onlyForAdmins(PUT);
-exports.DELETE = decorators.onlyForAdmins(DELETE);
+exports.POST   = decorators.onlyForRegisteredUsers(POST);
+exports.PUT    = decorators.onlyForRegisteredUsers(PUT);
+exports.DELETE = decorators.onlyForRegisteredUsers(DELETE);

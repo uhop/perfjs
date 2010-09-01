@@ -1,16 +1,11 @@
-var Test = require("content/test").Test,
+var Test = require("content/models").Test,
+    toJson = require("utils"),
     testApi = require("./test");
 
 function GET(request){
 	// list available tests
     return {
-		json: Test.all().fetch().map(function(test){
-			return {
-				uri: "/api/test/?key=" + test.key(),
-				title: test.title,
-				description: test.description
-			};
-		})
+		json: Test.all().fetch().map(toJson())
 	};
 }
 

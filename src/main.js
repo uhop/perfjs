@@ -1,10 +1,10 @@
-var Combine = require("middleware").Combine;
+var makeStack = require("middleware").makeStack;
 
 function getNitroMiddleware(name){
     return require("nitro/middleware/" + name).middleware;
 }
 
-exports.app = Combine([
+exports.app = makeStack([
     getNitroMiddleware("setup"),
     getNitroMiddleware("path"),
     getNitroMiddleware("errors"),
