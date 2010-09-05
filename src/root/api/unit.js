@@ -18,7 +18,7 @@ function POST(request){
     }catch (errors){
         return {json: {errors: errors}};
     }
-    return {json: {uri: unit.uri()}};
+    return Response.created(unit.uri());
 }
 
 function PUT(request){

@@ -18,7 +18,7 @@ function POST(request){
     }catch (errors){
         return {json: {errors: errors}};
     }
-    return {json: {uri: group.uri()}};
+    return Response.created(group.uri());
 }
 
 function PUT(request){
