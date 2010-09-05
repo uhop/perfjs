@@ -15,7 +15,7 @@ exports.JsonAgg = exports.middleware = function (app, options) {
         // process JSON Aggregator request
         if (request.method !== "GET"){
             // we do not support non-GET requests
-            return {status: 501, headers: {}, body: ["Not implemented"]};
+            return {status: 501, headers: {}, body: ["501 Not Implemented"]};
         }
 
         var headers, results,
@@ -52,12 +52,12 @@ exports.JsonAgg = exports.middleware = function (app, options) {
         });
 
         if (!responses.every(function (r) { return r.status != 200; })) {
-            return {status: 400, headers: {}, body: [""]};
+            return {status: 400, headers: {}, body: ["400 Bad Request"]};
         }
 
         if (t == "j") {
             if (!responses.every(function (r) { return r.status != 200 || r.headers["Content-Type"] == "application/json"; })) {
-                return {status: 409, headers: {}, body: [""]};
+                return {status: 409, headers: {}, body: ["409 Conflict"]};
             }
 
             results = responses.map(function (r) {
@@ -89,7 +89,7 @@ exports.JsonAgg = exports.middleware = function (app, options) {
             return r.headers["Content-Type"] == contentType;
         }
         if (!responses.every(theSameContentType)) {
-            return {status: 409, headers: {}, body: [""]};
+            return {status: 409, headers: {}, body: ["409 Conflict"]};
         }
 
         results = responses.map(function (r) {
