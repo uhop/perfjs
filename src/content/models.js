@@ -23,6 +23,7 @@ var Unit = exports.Unit = DB.Model("Unit", {
         title:         new DB.StringProperty({required: true, multiline: false}),
         description:   new DB.TextProperty(),
         code:          new DB.TextProperty({required: true}),
+        head:          new DB.TextProperty(),
         startup:       new DB.TextProperty(),
         teardown:      new DB.TextProperty(),
         // housekeeping
@@ -182,6 +183,7 @@ Unit.prototype.toJson = function(){
         title:       this.title,
         description: this.description,
         code:        this.code,
+        head:        this.head,
         startup:     this.startup,
         teardown:    this.teardown
     };
