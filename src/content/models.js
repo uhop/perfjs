@@ -8,7 +8,8 @@ var Test = exports.Test = DB.Model("Test", {
         published:     new DB.BooleanProperty({required: true, defaultValue: false}),
         userName:      new DB.StringProperty({required: true, multiline: false}),
         // housekeeping
-        userId:        new DB.StringProperty({multiline: false})
+        userId:        new DB.StringProperty({multiline: false}),
+        last:          new DB.DateTimeProperty({autoNow: true})
     });
 
 var Group = exports.Group = DB.Model("Group", {
@@ -16,7 +17,8 @@ var Group = exports.Group = DB.Model("Group", {
         description:   new DB.TextProperty(),
         // housekeeping
         test:          new DB.ReferenceProperty({required: true, referenceClass: Test}),
-        userId:        new DB.StringProperty({multiline: false})
+        userId:        new DB.StringProperty({multiline: false}),
+        last:          new DB.DateTimeProperty({autoNow: true})
     });
 
 var Unit = exports.Unit = DB.Model("Unit", {
@@ -29,11 +31,11 @@ var Unit = exports.Unit = DB.Model("Unit", {
         // housekeeping
         test:          new DB.ReferenceProperty({required: true, referenceClass: Test}),
         group:         new DB.ReferenceProperty({required: true, referenceClass: Group}),
-        userId:        new DB.StringProperty({multiline: false})
+        userId:        new DB.StringProperty({multiline: false}),
+        last:          new DB.DateTimeProperty({autoNow: true})
     });
 
 var Stat = exports.Stat = DB.Model("Stat", {
-        timestamp:     new DB.DateTimeProperty({required: true}),
         // browser UA string, and sniffed browser/version
         userAgent:     new DB.StringProperty({required: true, multiline: false}),
         browser:       new DB.StringProperty({required: true, multiline: false}),
@@ -55,7 +57,8 @@ var Stat = exports.Stat = DB.Model("Stat", {
         test:          new DB.ReferenceProperty({required: true, referenceClass: Test}),
         group:         new DB.ReferenceProperty({required: true, referenceClass: Group}),
         unit:          new DB.ReferenceProperty({required: true, referenceClass: Unit}),
-        userId:        new DB.StringProperty({multiline: false})
+        userId:        new DB.StringProperty({multiline: false}),
+        timestamp:     new DB.DateTimeProperty({autoNow: true})
     });
 
 
@@ -81,6 +84,7 @@ Test.prototype.toJson = function(){
         description: this.description,
         published:   this.published,
         userName:    this.userName,
+        last:        this.last.getTime(),
         publicUri:   this.publicUri()
     };
 };
@@ -134,6 +138,7 @@ Group.prototype.toJson = function(){
         key:         this.key(),
         uri:         this.uri(),
         test:        this.test.uri(),
+        last:        this.last.getTime(),
         title:       this.title,
         description: this.description
     };
@@ -180,6 +185,7 @@ Unit.prototype.toJson = function(){
         uri:         this.uri(),
         test:        this.test.uri(),
         group:       this.group.uri(),
+        last:        this.last.getTime(),
         title:       this.title,
         description: this.description,
         code:        this.code,
@@ -221,7 +227,7 @@ Stat.prototype.toJson = function(){
         test:          this.test.uri(),
         group:         this.group.uri(),
         unit:          this.unit.uri(),
-        timestamp:     this.timestamp,
+        timestamp:     this.timestamp.getTime(),
         userAgent:     this.userAgent,
         browser:       this.browser,
         version:       this.version,
