@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Testing parsing</title>
+        <script src="http://ajax.googleapis.com/ajax/libs/dojo/1.5/dojo/dojo.xd.js.uncompressed.js"></script>
+        <style>
+            #decoded textarea {width: 800px; height: 400px;}
+        </style>
+        <script>
+            dojo.require("dojo.io.script");
+
+            var firstRun = true;
+
+            function fetchGist(gist){
+                dojo.io.script.get({
+                    url: "http://gist.github.com/" + gist + ".json",
+                    jsonp: "callback",
+                    load: process,
+                    error: function(){
+                        alert("Something went wrong and we couldn't fetch a gist.\r\nPlease make sure it exists.");
+                    }
+                });
+            }
+
+            function clear(){
+                dojo.empty("original");
+                dojo.empty("decoded");
+            }
+
+            function process(data){
+                // add a style sheet once
+                if(firstRun){
+                    dojo.create("link", {
+                        href: data.stylesheet,
+                        rel:  "stylesheet",
+                        type: "text/css"
+                    }, dojo.doc.documentElement);
+                    firstRun = false;
+                }
+                // make a presentation
+                dojo.place("<h1>" + data.description + "</h1>", "original");
+                dojo.place(data.div, "original");
+                // extract original text
+                dojo.query(".gist-file pre", dojo.byId("original")).forEach(function(node, index){
+                    var text = extract(node);
+                    dojo.place("<h2>" + data.files[index] + "</h2>", "decoded");
+                    dojo.place("<textarea>" + text + "</textarea>", "decoded");
+                });
+            }
+
+            function extract(node){
+                // collect text
+                var text = [];
+                dojo.query(".line", node).forEach(function(line){
+                    extractText(line, text);
+                    text.push("\r\n");
+                });
+                return text.join("");
+            }
+
+            function extractText(node, text){
+                switch(node.nodeType){
+                    case 3:
+                        //if(!whitespace.test(node.nodeValue)){
+                            text.push(node.nodeValue);
+                        //}
+                        break;
+                    case 1:
+                        for(var child = node.firstChild; child; child = child.nextSibling){
+                            extractText(child, text);
+                        }
+                        break;
+                }
+            }
+
+            dojo.ready(function(){
+                dojo.connect(dojo.byId("input"), "onsubmit", function(evt){
+                    var gist = dojo.byId("gist").value;
+                    if(gist){
+                        clear();
+                        fetchGist(gist);
+                    }
+                    evt.preventDefault();
+                    evt.stopPropagation();
+                    return false;
+                });
+            });
+        </script>
+    </head>
+    <body>
+        <form id="input" action="http://google.com/">
+            <label>Gist:&nbsp;<input id="gist" name="gist" type="text"></label>&nbsp;
+            <input type="submit" value="Submit">
+        </form>
+        <div id="original"></div>
+        <div id="decoded"></div>
+    </body>
+</html>
