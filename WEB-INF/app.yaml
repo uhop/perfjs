@@ -1,5 +1,5 @@
-application: stat-collector
-version: 1-4-test
+application: perfjs
+version: 1-6-static
 runtime: java
 public_root: /root
 #default_expiration: "15d"
