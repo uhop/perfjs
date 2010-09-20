@@ -1,328 +1,292 @@
-function bench(delay, limit){
-	// delay - pause between tests in ms
-	// limit - the lower limit of a test in ms
+function bench(delay, limit, points){
+    // delay - pause between tests in ms
+    // limit - the lower limit of a test in ms
+    // points - number of data points per test
+
+    // utilities
+
+    var nothing = new Function(), empty = {};
+
+    function bind(fn, obj){
+        if(Object.prototype.toString.call(fn) == "[object Function]"){
+            return function(){
+                return fn.apply(obj, arguments);
+            };
+        }
+        return function(){
+            return obj[fn].apply(obj, arguments);
+        }
+    }
+
+    function emit(listeners /*...*/){
+        var args = Array.prototype.slice(1);
+        for(var i = 0; i < listeners.length; ++i){
+            listeners[i].apply(empty, args);
+        }
+    }
+
+    function runner(tasks){
+        while(tasks.length){
+            var task = tasks.pop();
+            if(task(tasks)){
+                setTimeout(function(){
+                    runner(tasks);
+                }, delay);
+                break;
+            }
+        }
+    }
+
+    // benchmark functions
+
+    function runGroups(tasks, self){
+        for(var i = self.groups.length - 1; i >= 0; --i){
+            (function(i){
+                tasks.push(
+                    function(){ emit(self.groupEndListeners, self, i); },
+                    function(tasks){ runGroup(tasks, self, i); },
+                    function(){ emit(self.groupStartListeners, self, i); }
+                );
+            })(i);
+        }
+    }
+
+    function runGroup(tasks, self, ngroup){
+        tasks.push(
+            function(tasks){ runUnits(tasks, self, ngroup); },
+            function(){ finalizeCalibration(self, ngroup); },
+            function(tasks){ calibrateUnits(tasks, self, ngroup); }
+        );
+    }
 
 
-	// functional helpers
+    function calibrateUnits(tasks, self, ngroup){
+        var units = self.unitDict[self.groups[ngroup]];
+        self.calibrations = [];
+        for(var i = units.length - 1; i >= 0; --i){
+            (function(i){
+                tasks.push(function(tasks){ calibrateUnit(tasks, self, ngroup, i); });
+            })(i);
+        }
+    }
 
-	var nothing = new Function();
+    function calibrateUnit(tasks, self, ngroup, nunit){
+        var unit = self.unitDict[self.groups[ngroup]][nunit];
+        tasks.push(function(){
+            if(unit.teardown){
+                unit.teardown();
+            }
+            emit(self.calEndListeners, self, ngroup, nunit);
+        });
+        tasks.push(function(tasks){ calibrateOnce(tasks, self, ngroup, nunit, 1); });
+        tasks.push(function(){
+            emit(self.calStartListeners, self, ngroup, nunit);
+            if(unit.startup){
+                unit.startup();
+            }
+        });
+    }
 
-	function wrap(fn /*...*/){
-		var args = Array.prototype.slice.call(arguments, 1);
-		return function(){
-			return fn.apply(this, args);
-		};
-	}
+    function calibrateOnce(tasks, self, ngroup, nunit, reps){
+        var unit = self.unitDict[self.groups[ngroup]][nunit];
+        var ms = benchmark(unit.test, reps);
+        if(ms < limit){
+            tasks.push(function(tasks){ calibrateOnce(tasks, self, ngroup, nunit, reps << 1); });
+        }else{
+            self.calibrations.push({reps: reps, ms: ms});
+        }
+        return true;
+    }
 
+    function finalizeCalibration(self, ngroup){
+        var p = 0;
+        for(var i = 1; i < self.calibrations.length; ++i){
+            if(self.calibrations[p].reps < self.calibrations[i].reps){
+                p = i;
+            }
+        }
+        var name = self.groups[ngroup];
+        self.repsDict[name] = self.calibrations[p];
+        self.estimate = delay * (self.calibrations.length - 1);
+        for(i = 0; i < self.calibrations.length; ++i){
+            var t = self.calibrations[i];
+            self.estimate += t.ms / t.reps * self.reps;
+        }
+        delete self.calibrations;
+    }
 
-	function curry(fn /*...*/){
-		var args = Array.prototype.slice.call(arguments, 1);
-		return function(){
-			return fn.apply(this, args.concat(Array.prototype.slice.call(arguments)));
-		};
-	}
+    function runUnits(tasks, self, ngroup){
+        var units = self.unitDict[self.groups[ngroup]];
+        for(var i = units.length - 1; i >= 0; --i){
+            var unit = self.unitDict[self.groups[ngroup]][i];
+            (function(i){
+                tasks.push(function(){
+                    if(unit.teardown){
+                        unit.teardown();
+                    }
+                    emit(self.unitEndListeners, self, ngroup, i);
+                });
+                tasks.push(function(){ correctTime(self, ngroup); });
+                for(var j = 0; j < points; ++j){
+                    tasks.push(function(){ runUnit(self, ngroup, i); });
+                }
+                tasks.push(function(){
+                    emit(self.unitStartListeners, self, ngroup, i);
+                    if(unit.startup){
+                        unit.startup();
+                    }
+                });
+            })(i);
+        }
+    }
 
-	function bind(fn, obj){
-		if(Object.prototype.toString.call(fn) == "[object Function]"){
-			return function(){
-				return fn.apply(obj, arguments);
-			};
-		}
-		return function(){
-			return obj[fn].apply(obj, arguments);
-		}
-	}
+    function runUnit(self, ngroup, nunit){
+        var name = self.groups[ngroup],
+            unit = self.unitDict[name][nunit];
+        var ms = benchmark(unit.test, self.repsDict[name]);
+        if(self.statDict[name]){
+            self.statDict[name].push(ms);
+        }else{
+            self.statDict[name] = [ms];
+        }
+        return true;
+    }
 
-	// array helpers
+    function correctTime(self, ngroup){
+        var name = self.groups[ngroup],
+            reps = self.repsDict[name],
+            ms = benchmark(nothing, reps),
+            stats = self.statDict[name];
+        for(var i = 0; i < stats.length; ++i){
+            stats[i] = Math.max(stats[i] - ms, 0);
+        }
+        return true;
+    }
 
-	var forEach = Array.prototype.forEach ?
-		function(array, fn, obj){
-			if(arguments.length < 3){
-				array.forEach(fn);
-			}else{
-				array.forEach(fn, obj);
-			}
-		}
-		:
-		function(array, fn, obj){
-			var l = array.length, i = 0;
-			if(arguments.length < 3){
-				for(; i < l; ++i){
-					fn(array[i], i, array);
-				}
-			}else{
-				for(; i < l; ++i){
-					fn.call(obj, array[i], i, array);
-				}
-			}
-		};
+    function benchmark(fn, reps){
+        // summary: benchmarks a function
+        // fn - function
+        // reps - number of repetitions
+        // returns total time in ms
+        var start = new Date();
+        for(var i = 0; i < reps; ++i){
+            fn();
+        }
+        var end = new Date();
+        return end.getTime() - start.getTime();
+    }
 
-	var map = Array.prototype.map ?
-		function(array, fn, obj){
-			return arguments.length < 3 ? array.map(fn) : array.map(fn, obj);
-		}
-		:
-		function(array, fn, obj){
-			var l = array.length, r = new Array(l), i = 0;
-			if(arguments.length < 3){
-				for(; i < l; ++i){
-					r[i] = fn(array[i], i, array);
-				}
-			}else{
-				for(; i < l; ++i){
-					r[i] = fn.call(obj, array[i], i, array);
-				}
-			}
-			return r;
-		};
+    // API functions
 
-	// DOM helpers
+    function group(groupName /*...*/){
+        var name = groupName, i = 1, units = [];
+        if(!name){
+            name = "Group #" + (this.groups.length + 1);
+            i = 0;
+        }
+        for(; i < arguments.length; ++i){
+            var fn = arguments[i], t;
+            if(Object.prototype.toString.call(fn) == "[object Function]"){
+                // solitary function
+                t = {test: fn};
+            }else{
+                // full object
+                t = fn;
+            }
+            if(!t.name){
+                if(t.test.name){
+                    t.name = t.test.name;
+                }else{
+                    var r = /^\s*function\s+([^\s\(]+)/.exec(t.test.toString());
+                    if(r && r[1]){
+                        t.name = r[1];
+                    }else{
+                        t.name = "Test #" + (units.length + 1);
+                    }
+                }
+            }
+            units.push(t);
+        }
+        if(units.length){
+            if(this.unitDict.hasOwnProperty(name)){
+                this.unitDict[name] = this.unitDict[name].concat(units);
+            }else{
+                this.groups.push(name);
+                this.unitDict[name] = units;
+            }
+        }
+    }
 
-	var place = function(){
-		var div = null;
-		return function(html, node){
-			if(!div){
-				div = document.createElement("div");
-			}
-			div.innerHTML = html;
-			node.appendChild(div.firstChild);
-		};
-	}();
+    function include(href, type){
+        this.includes.push({
+            href: href,
+            type: type || (/\.js$/.test(href.toLowerCase()) ? "js" : "css")
+        });
+    }
 
-	// statistics
+    function on(eventName, handler){
+        var listeners = this[eventName + "Listeners"];
+        if(listeners){
+            listeners.push(handler);
+        }
+    }
 
-	var statNames = ["minimum", "firstDecile", "lowerQuartile", "median", "upperQuartile", "lastDecile", "maximum", "average"];
+    // public methods
 
-	var statAbbr = {
-		minimum:        "min",
-		maximum:        "max",
-		median:         "med",
-		lowerQuartile:  "25%",
-		upperQuartile:  "75%",
-		firstDecile:    "10%",
-		lastDecile:     "90%",
-		average:        "avg"
-	};
+    function clear(){
+        // reset globals
+        this.groups   = [];
+        this.unitDict = {};
+        this.statDict = {};
+        this.repsDict = {};
+        this.includes = [];
+        // reset event listeners
+        this.testStartListeners  = [];
+        this.testEndListeners    = [];
+        this.groupStartListeners = [];
+        this.groupEndListeners   = [];
+        this.unitStartListeners  = [];
+        this.unitEndListeners    = [];
+        this.calStartListeners   = [];
+        this.calEndListeners     = [];
+    }
 
-	function getPercentile(sortedData, value){
-		var lowerIndex = 0, upperIndex = sortedData.length - 1;
-		while(lowerIndex < upperIndex){
-			var middleIndex = Math.floor((lowerIndex + upperIndex) / 2);
-			if(sortedData[middleIndex] < value){
-				lowerIndex = middleIndex + 1;
-			}else{
-				upperIndex = middleIndex;
-			}
-		}
-		return lowerIndex < sortedData.length && value < sortedData[lowerIndex] ?
-			lowerIndex : (lowerIndex + 1);
-	}
+    function register(code){
+        // summary: register tests
+        var f = new Function("", code);
+        f.call({
+            group:   bind(group, this),
+            include: bind(include, this),
+            on:      bind(on, this)
+        });
+        // insert includes
+        for(var i = 0; i < this.includes.length; ++i){
+            var t = this.includes[i];
+            document.write(
+                t.type.toLowerCase() == "js" ?
+                    "<script type='text/javascript' src='" + t.href + "'></script>" :
+                    "<link type='text/css' rel='stylesheet' href='" + t.href + "'>"
+            )
+        }
+    }
 
-	function getWeightedValue(sortedData, weight){
-		var pos = weight * (sortedData.length - 1),
-			upperIndex = Math.ceil(pos),
-			lowerIndex = upperIndex - 1;
-		if(lowerIndex <= 0){
-			// return first element
-			return sortedData[0];
-		}
-		if(upperIndex >= sortedData.length){
-			// return last element
-			return sortedData[sortedData.length - 1];
-		}
-		// linear approximation
-		return sortedData[lowerIndex] * (upperIndex - pos) + sortedData[upperIndex] * (pos - lowerIndex);
-	}
+    function run(){
+        var self = this, tasks = [
+            function(){ emit(self.testEndListeners,  self); },
+            function(tasks){ runGroups(tasks, self); },
+            function(){ emit(self.testStartListeners,  self); }
+        ];
+        runner(tasks);
+    }
 
-	function getStats(rawData, repetitions){
-		var sortedData = rawData.slice(0).sort(function(a, b){ return a - b; }),
-			result = {
-				rawData:       rawData,
-				repetitions:   repetitions,
-				sortedData:    sortedData,
-				// the five-number summary
-				minimum:       sortedData[0],
-				maximum:       sortedData[sortedData.length - 1],
-				median:        getWeightedValue(sortedData, 0.5),
-				lowerQuartile: getWeightedValue(sortedData, 0.25),
-				upperQuartile: getWeightedValue(sortedData, 0.75),
-				// extended to the Bowley's seven-figure summary
-				firstDecile:   getWeightedValue(sortedData, 0.1),
-				lastDecile:    getWeightedValue(sortedData, 0.9)
-			};
-		// add the average
-		for(var i = 0, sum = 0; i < sortedData.length; sum += sortedData[i++]);
-		result.average = sum / sortedData.length;
-		// normalize results
-		forEach(statNames, function(name){
-			if(result.hasOwnProperty(name) && typeof result[name] == "number"){
-				result[name] /= repetitions;
-			}
-		});
-		return result;
-	}
+    // make an object
 
-	// test harness
-
-	// the basic unit to run a test with timing
-	function runTest(f, n){
-		var start = new Date();
-		for(var i = 0; i < n; ++i){
-			f();
-		}
-		var end = new Date();
-		return end.getTime() - start.getTime();
-	}
-
-	// find the threshold number of tests just exceeding the limit
-	function findThreshold(f, limit){
-		// very simplistic search probing only powers of two
-		var n = 1;
-		while(runTest(f, n) + runTest(nothing, n) < limit) n <<= 1;
-		return n;
-	}
-
-	function runUnitTest(a, f, n, k, m, next){
-		a[k++] = runTest(f, n) - runTest(nothing, n);
-		if(k < m){
-			setTimeout(wrap(runUnitTest, a, f, n, k, m, next), delay);
-		}else{
-			next(a);
-		}
-	}
-
-	function runUnits(test, n, m, next){
-		var a = new Array(m);
-		runUnitTest(a, test, n, 0, m, next);
-	}
-
-	// run a group of tests, prepare statistics and show results
-
-	function clear(){
-		this.unitGroups = [];
-		this.unitDict   = {};
-		this.statDict   = {};
-		this.groupIndex = -1;
-	}
-
-	function register(groupName, units){
-		if(arguments.length < 2){
-			units = groupName;
-			groupName = "";
-		}
-		groupName = groupName || "Default group";
-		if(Object.prototype.toString.call(units) != "[object Array]"){
-			units = [units];
-		}
-		if(this.unitDict.hasOwnProperty(groupName)){
-			this.unitDict[groupName] = this.unitDict[groupName].concat(units);
-		}else{
-			this.unitGroups.push(groupName);
-			this.unitDict[groupName] = units.slice(0);
-		}
-	}
-
-	function runGroup(groupName, repetitions, node){
-		var units = this.unitDict[groupName], stats = [];
-
-		// find a threshold
-		var threshold = Infinity;
-		forEach(units, function(unit){
-			threshold = Math.min(threshold, findThreshold(unit.test, limit));
-		});
-
-		function process(rawData){
-            var unit;
-			if(rawData){
-				unit = units[stats.length];
-				// run teardown, if available
-				if(unit.teardown){
-					unit.teardown();
-				}
-				// save our data
-				var data = getStats(rawData, threshold);
-				this.onUnitEnd(groupName, unit, data);
-				stats.push(data);
-			}
-			if(stats.length < units.length){
-				unit = units[stats.length];
-				this.onUnitStart(groupName, unit);
-				// run setup, if available
-				if(unit.setup){
-					unit.setup();
-				}
-				// run the test
-				runUnits(unit.test, threshold, repetitions, bind(process, this));
-				return;
-			}
-			// save results
-			this.statDict[groupName] = stats;
-			this.onGroupEnd(groupName, units, stats);
-			// prepare to show results
-			var diff = Math.max.apply(Math, map(stats, function(s){ return s.upperQuartile - s.lowerQuartile; })),
-				prec = 1 - Math.floor(Math.log(diff) / Math.LN10), fastest = 0, stablest = 0;
-			forEach(stats, function(s, i){
-				if(i){
-					if(s.median < stats[fastest].median){
-						fastest = i;
-					}
-					if(s.upperQuartile - s.lowerQuartile < stats[i].upperQuartile - stats[i].lowerQuartile){
-						stablest = i;
-					}
-				}
-			}, this);
-			// show the results
-			var tab = ["<table class='stats'><thead><tr><th>Test</th>"];
-			tab.push(map(units, function(unit, i){
-				return "<th class='" + (i == fastest ? "fastest" : "") + " " + (i == stablest ? "stablest" : "") + "'>" + unit.name + "</th>";
-			}).join(""));
-			tab.push("</tr></thead><tbody>");
-			forEach(statNames, function(name){
-				tab.push("<tr class='name " + name + "'><td>" + name + "</td>");
-				forEach(stats, function(s, i){
-					tab.push("<td class='" + (i == fastest ? "fastest" : "") + " " + (i == stablest ? "stablest" : "") + "'>" + s[name].toFixed(prec) + "</td>");
-				});
-				tab.push("</tr>");
-			});
-			tab.push("</tbody></table>");
-			place(tab.join(""), node);
-			// next group
-			run(repetitions, node);
-		}
-
-		// start the group
-		place("<h1>" + groupName + "</h1>", node);
-		this.onGroupStart(groupName, units);
-		process.call(this);
-	}
-
-	function run(repetitions, node){
-		if(this.groupIndex < 0){
-			this.groupIndex = -1;
-		}
-		++this.groupIndex;
-		if(this.unitGroups.length <= this.groupIndex){
-			this.groupIndex = -1;
-			alert("Done!");
-		}else{
-			runGroup(this.unitGroups[this.groupIndex], repetitions, node);
-		}
-	}
-
-	return {
-		// data
-		unitGroups: [],
-		unitDict:   {},
-		statDict:   {},
-		groupIndex: -1,
-		// methods
-		clear:      clear,
-		register:   register,
-		run:        run,
-		// events
-		onGroupStart: nothing,
-		onGroupEnd:   nothing,
-		onUnitStart:  nothing,
-		onUnitEnd:    nothing
-	};
+    var item = {
+        // methods
+        clear:    clear,
+        register: register,
+        run:      run
+    };
+    clear.call(item);
+    return item;
 }
