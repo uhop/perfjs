@@ -1,13 +1,16 @@
 application: perfjs
-version: 1-6-static
+version: 1-7-bench
 runtime: java
-public_root: /root
+public_root: /static
 #default_expiration: "15d"
 #sessions_enabled: true
 
+static_files:
+  - exclude: tests/*
+
 resource_files:
   - exclude: README.md
-  - exclude: package.json 
+  - exclude: package.json
 
 handlers:
   - url: /*

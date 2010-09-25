@@ -1,6 +1,29 @@
+function Runner(delay){
+    this.delay = delay;
+    this.queue = Array.prototype.slice.call(arguments, 1);
+}
+
+Runner.prototype = {
+    run: function(){
+        var self = this;
+        while(this.queue.length){
+            var task = this.queue.pop();
+            if(task(this)){
+                setTimeout(function(){
+                    self.run();
+                }, this.delay);
+                break;
+            }
+        }
+    },
+    add: function(task /*...*/){
+        this.queue.push.apply(this.queue, arguments);
+    }
+};
+
 function bench(delay, limit, points){
-    // delay - pause between tests in ms
-    // limit - the lower limit of a test in ms
+    // delay  - pause between tests in ms
+    // limit  - the lower limit of a test in ms
     // points - number of data points per test
 
     // utilities
@@ -19,79 +42,67 @@ function bench(delay, limit, points){
     }
 
     function emit(listeners /*...*/){
-        var args = Array.prototype.slice(1);
+        var args = Array.prototype.slice.call(arguments, 1);
         for(var i = 0; i < listeners.length; ++i){
             listeners[i].apply(empty, args);
         }
     }
 
-    function runner(tasks){
-        while(tasks.length){
-            var task = tasks.pop();
-            if(task(tasks)){
-                setTimeout(function(){
-                    runner(tasks);
-                }, delay);
-                break;
-            }
-        }
-    }
-
     // benchmark functions
 
-    function runGroups(tasks, self){
+    function runGroups(runner, self){
         for(var i = self.groups.length - 1; i >= 0; --i){
             (function(i){
-                tasks.push(
+                runner.add(
                     function(){ emit(self.groupEndListeners, self, i); },
-                    function(tasks){ runGroup(tasks, self, i); },
-                    function(){ emit(self.groupStartListeners, self, i); }
+                    function(runner){ runGroup(runner, self, i); },
+                    function(){ emit(self.groupBeginListeners, self, i); }
                 );
             })(i);
         }
     }
 
-    function runGroup(tasks, self, ngroup){
-        tasks.push(
-            function(tasks){ runUnits(tasks, self, ngroup); },
+    function runGroup(runner, self, ngroup){
+        runner.add(
+            function(runner){ runUnits(runner, self, ngroup); },
             function(){ finalizeCalibration(self, ngroup); },
-            function(tasks){ calibrateUnits(tasks, self, ngroup); }
+            function(runner){ calibrateUnits(runner, self, ngroup); }
         );
     }
 
 
-    function calibrateUnits(tasks, self, ngroup){
+    function calibrateUnits(runner, self, ngroup){
         var units = self.unitDict[self.groups[ngroup]];
         self.calibrations = [];
         for(var i = units.length - 1; i >= 0; --i){
             (function(i){
-                tasks.push(function(tasks){ calibrateUnit(tasks, self, ngroup, i); });
+                runner.add(function(runner){ return calibrateUnit(runner, self, ngroup, i); });
             })(i);
         }
     }
 
-    function calibrateUnit(tasks, self, ngroup, nunit){
+    function calibrateUnit(runner, self, ngroup, nunit){
         var unit = self.unitDict[self.groups[ngroup]][nunit];
-        tasks.push(function(){
+        runner.add(function(){
             if(unit.teardown){
                 unit.teardown();
             }
             emit(self.calEndListeners, self, ngroup, nunit);
         });
-        tasks.push(function(tasks){ calibrateOnce(tasks, self, ngroup, nunit, 1); });
-        tasks.push(function(){
-            emit(self.calStartListeners, self, ngroup, nunit);
+        runner.add(function(runner){ return calibrateOnce(runner, self, ngroup, nunit, 1); });
+        runner.add(function(){
+            emit(self.calBeginListeners, self, ngroup, nunit);
             if(unit.startup){
                 unit.startup();
             }
         });
     }
 
-    function calibrateOnce(tasks, self, ngroup, nunit, reps){
+    function calibrateOnce(runner, self, ngroup, nunit, reps){
         var unit = self.unitDict[self.groups[ngroup]][nunit];
         var ms = benchmark(unit.test, reps);
         if(ms < limit){
-            tasks.push(function(tasks){ calibrateOnce(tasks, self, ngroup, nunit, reps << 1); });
+            runner.add(function(runner){ return calibrateOnce(runner, self, ngroup, nunit, reps << 1); });
         }else{
             self.calibrations.push({reps: reps, ms: ms});
         }
@@ -105,33 +116,34 @@ function bench(delay, limit, points){
                 p = i;
             }
         }
-        var name = self.groups[ngroup];
-        self.repsDict[name] = self.calibrations[p];
-        self.estimate = delay * (self.calibrations.length - 1);
+        var name = self.groups[ngroup], estimate = 0,
+            reps = self.reps = self.repsDict[name] = self.calibrations[p].reps;
         for(i = 0; i < self.calibrations.length; ++i){
             var t = self.calibrations[i];
-            self.estimate += t.ms / t.reps * self.reps;
+            estimate += t.ms / t.reps * reps;
         }
+        estimate *= points;
+        self.estimate = estimate + delay * (self.calibrations.length * points - 1);
         delete self.calibrations;
     }
 
-    function runUnits(tasks, self, ngroup){
+    function runUnits(runner, self, ngroup){
         var units = self.unitDict[self.groups[ngroup]];
         for(var i = units.length - 1; i >= 0; --i){
             var unit = self.unitDict[self.groups[ngroup]][i];
             (function(i){
-                tasks.push(function(){
+                runner.add(function(){
                     if(unit.teardown){
                         unit.teardown();
                     }
                     emit(self.unitEndListeners, self, ngroup, i);
                 });
-                tasks.push(function(){ correctTime(self, ngroup); });
+                runner.add(function(){ correctTime(self, ngroup); });
                 for(var j = 0; j < points; ++j){
-                    tasks.push(function(){ runUnit(self, ngroup, i); });
+                    runner.add(function(){ return runUnit(self, ngroup, i); });
                 }
-                tasks.push(function(){
-                    emit(self.unitStartListeners, self, ngroup, i);
+                runner.add(function(){
+                    emit(self.unitBeginListeners, self, ngroup, i);
                     if(unit.startup){
                         unit.startup();
                     }
@@ -143,7 +155,9 @@ function bench(delay, limit, points){
     function runUnit(self, ngroup, nunit){
         var name = self.groups[ngroup],
             unit = self.unitDict[name][nunit];
+        emit(self.pointBeginListeners, self, ngroup, nunit);
         var ms = benchmark(unit.test, self.repsDict[name]);
+        emit(self.pointEndListeners, self, ngroup, nunit);
         if(self.statDict[name]){
             self.statDict[name].push(ms);
         }else{
@@ -180,7 +194,7 @@ function bench(delay, limit, points){
 
     function group(groupName /*...*/){
         var name = groupName, i = 1, units = [];
-        if(!name){
+        if(!Object.prototype.toString.call(name) != "[object String]"){
             name = "Group #" + (this.groups.length + 1);
             i = 0;
         }
@@ -241,14 +255,16 @@ function bench(delay, limit, points){
         this.repsDict = {};
         this.includes = [];
         // reset event listeners
-        this.testStartListeners  = [];
+        this.testBeginListeners  = [];
         this.testEndListeners    = [];
-        this.groupStartListeners = [];
+        this.groupBeginListeners = [];
         this.groupEndListeners   = [];
-        this.unitStartListeners  = [];
-        this.unitEndListeners    = [];
-        this.calStartListeners   = [];
+        this.calBeginListeners   = [];
         this.calEndListeners     = [];
+        this.unitBeginListeners  = [];
+        this.unitEndListeners    = [];
+        this.pointBeginListeners = [];
+        this.pointEndListeners   = [];
     }
 
     function register(code){
@@ -271,12 +287,13 @@ function bench(delay, limit, points){
     }
 
     function run(){
-        var self = this, tasks = [
+        var self = this, runner = new Runner(
+            delay,
             function(){ emit(self.testEndListeners,  self); },
-            function(tasks){ runGroups(tasks, self); },
-            function(){ emit(self.testStartListeners,  self); }
-        ];
-        runner(tasks);
+            function(runner){ runGroups(runner, self); },
+            function(){ emit(self.testBeginListeners,  self); }
+        );
+        runner.run();
     }
 
     // make an object
@@ -285,7 +302,10 @@ function bench(delay, limit, points){
         // methods
         clear:    clear,
         register: register,
-        run:      run
+        run:      run,
+        // API helpers
+        include:  include,
+        on:       on
     };
     clear.call(item);
     return item;
