@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Testing the bench</title>
+        <script src="/js/bench.js"></script>
+        <script>
+            var b = bench(20, 20, 100);
+            b.register(
+"\
+function test(){}\n\
+var nil = [];\n\
+\n\
+this.group(\n\
+    function fn(){ test(); },\n\
+    function fnArgs(){ test(); },\n\
+    function fnCall(){ test.call(nil); },\n\
+    function fnApply(){ test.apply(nil, nil); }\n\
+);\n\
+\n\
+this.on('unitBegin', function(test, ngroup, nunit){\n\
+    if(!nunit){\n\
+        console.log(test.reps + ' repetitions per point, estimated to take ~' + test.estimate + ' ms');\n\
+    }\n\
+});\n\
+\n\
+this.on('testBegin',  function(){ console.log('test begin'); });\n\
+this.on('testEnd',    function(){ console.log('test end'); });\n\
+this.on('groupBegin', function(test, ngroup){ console.log('group begin: ' + test.groups[ngroup]); });\n\
+this.on('groupEnf',   function(test, ngroup){ console.log('group end: ' + test.groups[ngroup]); });\n\
+this.on('unitBegin',  function(test, ngroup, nunit){ console.log('unit begin: ' + test.groups[ngroup] + ' - ' + test.unitDict[test.groups[ngroup]][nunit].name); });\n\
+this.on('unitEnd',    function(test, ngroup, nunit){ console.log('unit end: ' + test.groups[ngroup] + ' - ' + test.unitDict[test.groups[ngroup]][nunit].name); });\n\
+this.on('calBegin',   function(test, ngroup, nunit){ console.log('calibration begin: ' + test.groups[ngroup] + ' - ' + test.unitDict[test.groups[ngroup]][nunit].name); });\n\
+this.on('calEnd',     function(test, ngroup, nunit){ console.log('calibration end: ' + test.groups[ngroup] + ' - ' + test.unitDict[test.groups[ngroup]][nunit].name); });\n\
+"
+            );
+            function onLoad(){
+                b.run();
+            }
+        </script>
+    </head>
+    <body>
+        <h1>Testing the bench</h1>
+        <p><button onclick="onLoad()">Run</button></p>
+        <div id="log">See the console output.</div>
+    </body>
+</html>
