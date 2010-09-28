@@ -1,17 +1,20 @@
-function Runner(delay){
-    this.delay = delay;
-    this.queue = Array.prototype.slice.call(arguments, 1);
+function Runner(work, sleep){
+    this.work  = work;
+    this.sleep = sleep;
+    this.queue = Array.prototype.slice.call(arguments, 2);
 }
 
 Runner.prototype = {
     run: function(){
-        var self = this;
+        var self = this, task, sliceStart = new Date().getTime(), sliceFinish;
         while(this.queue.length){
             var task = this.queue.pop();
-            if(task(this)){
+            task(this);
+            sliceFinish = new Date().getTime();
+            if(sliceFinish - sliceStart >= this.work){
                 setTimeout(function(){
                     self.run();
-                }, this.delay);
+                }, this.sleep);
                 break;
             }
         }
@@ -21,8 +24,9 @@ Runner.prototype = {
     }
 };
 
-function bench(delay, limit, points){
-    // delay  - pause between tests in ms
+function bench(work, sleep, limit, points){
+    // work   - allowed work slice in ms
+    // sleep  - pause between tests in ms
     // limit  - the lower limit of a test in ms
     // points - number of data points per test
 
@@ -76,7 +80,7 @@ function bench(delay, limit, points){
         self.calibrations = [];
         for(var i = units.length - 1; i >= 0; --i){
             (function(i){
-                runner.add(function(runner){ return calibrateUnit(runner, self, ngroup, i); });
+                runner.add(function(runner){ calibrateUnit(runner, self, ngroup, i); });
             })(i);
         }
     }
@@ -89,7 +93,7 @@ function bench(delay, limit, points){
             }
             emit(self.calEndListeners, self, ngroup, nunit);
         });
-        runner.add(function(runner){ return calibrateOnce(runner, self, ngroup, nunit, 1); });
+        runner.add(function(runner){ calibrateOnce(runner, self, ngroup, nunit, 1); });
         runner.add(function(){
             emit(self.calBeginListeners, self, ngroup, nunit);
             if(unit.startup){
@@ -102,11 +106,10 @@ function bench(delay, limit, points){
         var unit = self.unitDict[self.groups[ngroup]][nunit];
         var ms = benchmark(unit.test, reps);
         if(ms < limit){
-            runner.add(function(runner){ return calibrateOnce(runner, self, ngroup, nunit, reps << 1); });
+            runner.add(function(runner){ calibrateOnce(runner, self, ngroup, nunit, reps << 1); });
         }else{
             self.calibrations.push({reps: reps, ms: ms});
         }
-        return true;
     }
 
     function finalizeCalibration(self, ngroup){
@@ -123,7 +126,7 @@ function bench(delay, limit, points){
             estimate += t.ms / t.reps * reps;
         }
         estimate *= points;
-        self.estimate = estimate + delay * (self.calibrations.length * points - 1);
+        self.estimate = estimate + Math.floor(estimate / work) * sleep;
         delete self.calibrations;
     }
 
@@ -140,7 +143,7 @@ function bench(delay, limit, points){
                 });
                 runner.add(function(){ correctTime(self, ngroup); });
                 for(var j = 0; j < points; ++j){
-                    runner.add(function(){ return runUnit(self, ngroup, i); });
+                    runner.add(function(){ runUnit(self, ngroup, i); });
                 }
                 runner.add(function(){
                     emit(self.unitBeginListeners, self, ngroup, i);
@@ -163,7 +166,6 @@ function bench(delay, limit, points){
         }else{
             self.statDict[name] = [ms];
         }
-        return true;
     }
 
     function correctTime(self, ngroup){
@@ -174,7 +176,6 @@ function bench(delay, limit, points){
         for(var i = 0; i < stats.length; ++i){
             stats[i] = Math.max(stats[i] - ms, 0);
         }
-        return true;
     }
 
     function benchmark(fn, reps){
@@ -288,7 +289,7 @@ function bench(delay, limit, points){
 
     function run(){
         var self = this, runner = new Runner(
-            delay,
+            work, sleep,
             function(){ emit(self.testEndListeners,  self); },
             function(runner){ runGroups(runner, self); },
             function(){ emit(self.testBeginListeners,  self); }
