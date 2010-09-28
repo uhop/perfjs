@@ -5,6 +5,7 @@
         <script src="/js/bench.js"></script>
         <script>
             var b = bench(100, 20, 20, 100);
+            b.group("*calibration*", new Function);
             b.register(
 "\
 function test(){}\n\
@@ -16,23 +17,55 @@ this.group(\n\
     function fnCall(){ test.call(nil); },\n\
     function fnApply(){ test.apply(nil, nil); }\n\
 );\n\
-\n\
-this.on('unitBegin', function(test, ngroup, nunit){\n\
-    if(!nunit){\n\
-        console.log(test.reps + ' repetitions per point, estimated to take ~' + test.estimate + ' ms');\n\
-    }\n\
-});\n\
-\n\
-this.on('testBegin',  function(){ console.log('test begin'); });\n\
-this.on('testEnd',    function(){ console.log('test end'); });\n\
-this.on('groupBegin', function(test, ngroup){ console.log('group begin: ' + test.groups[ngroup]); });\n\
-this.on('groupEnf',   function(test, ngroup){ console.log('group end: ' + test.groups[ngroup]); });\n\
-this.on('unitBegin',  function(test, ngroup, nunit){ console.log('unit begin: ' + test.groups[ngroup] + ' - ' + test.unitDict[test.groups[ngroup]][nunit].name); });\n\
-this.on('unitEnd',    function(test, ngroup, nunit){ console.log('unit end: ' + test.groups[ngroup] + ' - ' + test.unitDict[test.groups[ngroup]][nunit].name); });\n\
-this.on('calBegin',   function(test, ngroup, nunit){ console.log('calibration begin: ' + test.groups[ngroup] + ' - ' + test.unitDict[test.groups[ngroup]][nunit].name); });\n\
-this.on('calEnd',     function(test, ngroup, nunit){ console.log('calibration end: ' + test.groups[ngroup] + ' - ' + test.unitDict[test.groups[ngroup]][nunit].name); });\n\
 "
             );
+            b.on('testBegin',  function(test){ console.log('test begin with ' + test.groups.length + ' groups'); });
+            b.on('testEnd',    function(test){ console.log('test end'); });
+            b.on('groupBegin', function(test, ngroup){ console.log('group begin: ' + test.groups[ngroup] + ' with ' + test.unitDict[test.groups[ngroup]].length + ' units'); });
+            b.on('groupEnd',   function(test, ngroup){ console.log('group end: ' + test.groups[ngroup]); });
+            b.on('calBegin',   function(test, ngroup, nunit){ console.log('calibration begin: ' + test.groups[ngroup] + ' - ' + test.unitDict[test.groups[ngroup]][nunit].name); });
+            b.on('calEnd',     function(test, ngroup, nunit){ console.log('calibration end: ' + test.groups[ngroup] + ' - ' + test.unitDict[test.groups[ngroup]][nunit].name); });
+            b.on('unitEnd',    function(test, ngroup, nunit){ console.log('unit end: ' + test.groups[ngroup] + ' - ' + test.unitDict[test.groups[ngroup]][nunit].name); });
+            //b.on('pointBegin', function(test, ngroup, nunit){ console.log('point begin: ' + test.groups[ngroup] + ' - ' + test.unitDict[test.groups[ngroup]][nunit].name); });
+            //b.on('pointEnd',   function(test, ngroup, nunit){ console.log('point end: ' + test.groups[ngroup] + ' - ' + test.unitDict[test.groups[ngroup]][nunit].name); });
+
+            b.on('unitBegin', function(test, ngroup, nunit){
+                console.log('unit begin: ' + test.groups[ngroup] + ' - ' +
+                    test.unitDict[test.groups[ngroup]][nunit].name + ' (each point repeats unit ' +
+                        test.repsDict[test.groups[ngroup]][nunit].reps + ' times taking ~' +
+                        test.repsDict[test.groups[ngroup]][nunit].ms + 'ms)');
+            });
+
+            b.on("testEnd", function(test){
+                var parent = document.getElementById("log");
+                parent.innerHTML = "";
+                for(var i = 0; i < test.groups.length; ++i){
+                    var name = test.groups[i],
+                        units = test.unitDict[name],
+                        node = document.createElement("h2");
+                    node.innerHTML = name;
+                    parent.appendChild(node);
+                    for(var j = 0; j < units.length; ++j){
+                        var unit = units[j],
+                            stat = test.statDict[name][j],
+                            reps = test.repsDict[name][j];
+                        node = document.createElement("h3");
+                        node.innerHTML = unit.name;
+                        parent.appendChild(node);
+                        node = document.createElement("p");
+                        node.innerHTML = stat.length + " points, each averages " + reps.reps + " measurements.";
+                        parent.appendChild(node);
+                        var avg = 0;
+                        for(var k = 0; k < stat.length; ++k){
+                            avg += stat[k] / stat.length;
+                        }
+                        node = document.createElement("p");
+                        node.innerHTML = "<strong>" + avg + "ms</strong>";
+                        parent.appendChild(node);
+                    }
+                }
+            });
+
             function onLoad(){
                 b.run();
             }
