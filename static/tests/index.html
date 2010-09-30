@@ -4,8 +4,9 @@
         <title>Testing the bench</title>
         <script src="/js/bench.js"></script>
         <script>
+            //console = {log: function(){}};
             var b = bench(100, 20, 20, 50);
-            b.group("*calibration*", new Function);
+            //b.group("*calibration*", new Function);
             b.register(
 "\
 function test(){}\n\
@@ -53,16 +54,46 @@ this.group(\n\
                         node = document.createElement("p");
                         node.innerHTML = unit.stats.length + " points, each averages " + unit.reps + " measurements.";
                         parent.appendChild(node);
+                        //var rmean = i ? resampledMeanDiff(unit.stats, test.unitDict[test.groups[0]][0].stats, 1000) : resampledMean(unit.stats, 1000);
+                        var rmean = resampledMean(unit.stats, 1000);
                         var avg = 0;
                         for(var k = 0; k < unit.stats.length; ++k){
                             avg += unit.stats[k] / unit.stats.length;
                         }
                         node = document.createElement("p");
-                        node.innerHTML = "<strong>" + avg + "ms</strong>";
+                        node.innerHTML = "mean: " + rmean + "ms, avg: " + avg + "ms, bias: " + (avg - rmean) + "ms";
                         parent.appendChild(node);
                     }
                 }
             });
+
+            function mean(a){
+                var len = a.length, m = 0;
+                for(var i = 0; i < len; ++i){
+                    m += a[Math.floor(Math.random() * len)] / len;
+                }
+                return m;
+            }
+
+            function meanDiff(a, b){
+                return mean(a) - mean(b);
+            }
+
+            function resampledMean(a, n){
+                var m = 0;
+                for(var i = 0; i < n; ++i){
+                    m += mean(a) / n;
+                }
+                return m;
+            }
+
+            function resampledMeanDiff(a, b, n){
+                var m = 0;
+                for(var i = 0; i < n; ++i){
+                    m += meanDiff(a, b) / n;
+                }
+                return m;
+            }
 
             function onLoad(){
                 b.run();
