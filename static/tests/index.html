@@ -29,10 +29,11 @@ this.group(\n\
             //b.on('pointEnd',   function(test, ngroup, nunit){ console.log('point end: ' + test.groups[ngroup] + ' - ' + test.unitDict[test.groups[ngroup]][nunit].name); });
 
             b.on('unitBegin', function(test, ngroup, nunit){
-                console.log('unit begin: ' + test.groups[ngroup] + ' - ' +
-                    test.unitDict[test.groups[ngroup]][nunit].name + ' (each point repeats unit ' +
-                        test.repsDict[test.groups[ngroup]][nunit].reps + ' times taking ~' +
-                        test.repsDict[test.groups[ngroup]][nunit].ms + 'ms)');
+                var name = test.groups[ngroup], unit = test.unitDict[name][nunit];
+                console.log('unit begin: ' + name + ' - ' +
+                    unit.name + ' (each point repeats unit ' +
+                    unit.reps + ' times taking ~' +
+                    unit.ms + 'ms)');
             });
 
             b.on("testEnd", function(test){
@@ -45,18 +46,16 @@ this.group(\n\
                     node.innerHTML = name;
                     parent.appendChild(node);
                     for(var j = 0; j < units.length; ++j){
-                        var unit = units[j],
-                            stat = test.statDict[name][j],
-                            reps = test.repsDict[name][j];
+                        var unit = units[j];
                         node = document.createElement("h3");
                         node.innerHTML = unit.name;
                         parent.appendChild(node);
                         node = document.createElement("p");
-                        node.innerHTML = stat.length + " points, each averages " + reps.reps + " measurements.";
+                        node.innerHTML = unit.stats.length + " points, each averages " + unit.reps + " measurements.";
                         parent.appendChild(node);
                         var avg = 0;
-                        for(var k = 0; k < stat.length; ++k){
-                            avg += stat[k] / stat.length;
+                        for(var k = 0; k < unit.stats.length; ++k){
+                            avg += unit.stats[k] / unit.stats.length;
                         }
                         node = document.createElement("p");
                         node.innerHTML = "<strong>" + avg + "ms</strong>";

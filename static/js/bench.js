@@ -8,7 +8,7 @@ Runner.prototype = {
     run: function(){
         var self = this, task, sliceStart = new Date().getTime(), sliceFinish;
         while(this.queue.length){
-            var task = this.queue.pop();
+            task = this.queue.pop();
             task(this);
             sliceFinish = new Date().getTime();
             if(sliceFinish - sliceStart >= this.work){
@@ -32,7 +32,7 @@ function bench(work, sleep, limit, points){
 
     // utilities
 
-    var nothing = new Function(), empty = {};
+    var empty = {};
 
     function bind(fn, obj){
         if(Object.prototype.toString.call(fn) == "[object Function]"){
@@ -98,11 +98,8 @@ function bench(work, sleep, limit, points){
             runner.add(function(runner){ calibrateUnitOnce(runner, self, ngroup, nunit, reps, n + 1); });
         }else{
             var val = {reps: reps, ms: ms};
-            if(self.repsDict[name]){
-                self.repsDict[name].push(val);
-            }else{
-                self.repsDict[name] = [val];
-            }
+            unit.reps = reps;
+            unit.ms   = ms;
         }
     }
 
@@ -137,17 +134,13 @@ function bench(work, sleep, limit, points){
         var name = self.groups[ngroup],
             unit = self.unitDict[name][nunit];
         emit(self.pointBeginListeners, self, ngroup, nunit);
-        var ms = benchmark(unit.test, self.repsDict[name][nunit].reps);
+        var ms = benchmark(unit.test, unit.reps);
         emit(self.pointEndListeners, self, ngroup, nunit);
-        var stats = self.statDict[name];
+        var stats = unit.stats;
         if(!stats){
-            stats = self.statDict[name] = [];
+            stats = unit.stats = [];
         }
-        if(stats.length <= nunit){
-            stats.push([ms]);
-        }else{
-            stats[nunit].push(ms);
-        }
+        stats.push(ms);
     }
 
     function benchmark(fn, reps){
@@ -224,8 +217,6 @@ function bench(work, sleep, limit, points){
         // reset globals
         this.groups   = [];
         this.unitDict = {};
-        this.statDict = {};
-        this.repsDict = {};
         this.includes = [];
         // reset event listeners
         this.testBeginListeners  = [];
