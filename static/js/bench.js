@@ -75,15 +75,20 @@ function bench(work, sleep, limit, points){
     function calibrateUnit(runner, self, ngroup, nunit){
         var unit = self.unitDict[self.groups[ngroup]][nunit];
         runner.add(function(){
-            if(unit.teardown){
+            if(!unit.points && unit.teardown){
                 unit.teardown();
             }
             emit(self.calEndListeners, self, ngroup, nunit);
         });
-        runner.add(function(){ calibrateUnitOnce(runner, self, ngroup, nunit, 1, 0); });
+        if(unit.points){
+            unit.reps = unit.points;
+            unit.ms = -1;
+        }else{
+            runner.add(function(){ calibrateUnitOnce(runner, self, ngroup, nunit, 1, 0); });
+        }
         runner.add(function(){
             emit(self.calBeginListeners, self, ngroup, nunit);
-            if(unit.startup){
+            if(!unit.points && unit.startup){
                 unit.startup();
             }
         });
