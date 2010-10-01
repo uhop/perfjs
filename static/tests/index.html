@@ -6,7 +6,7 @@
         <script>
             //console = {log: function(){}};
             var b = bench(100, 20, 20, 50);
-            //b.group("*calibration*", new Function);
+            b.group("*calibration*", new Function);
             b.register(
 "\
 function test(){}\n\
@@ -54,45 +54,126 @@ this.group(\n\
                         node = document.createElement("p");
                         node.innerHTML = unit.stats.length + " points, each averages " + unit.reps + " measurements.";
                         parent.appendChild(node);
-                        //var rmean = i ? resampledMeanDiff(unit.stats, test.unitDict[test.groups[0]][0].stats, 1000) : resampledMean(unit.stats, 1000);
-                        var rmean = resampledMean(unit.stats, 1000);
-                        var avg = 0;
-                        for(var k = 0; k < unit.stats.length; ++k){
-                            avg += unit.stats[k] / unit.stats.length;
-                        }
                         node = document.createElement("p");
-                        node.innerHTML = "mean: " + rmean + "ms, avg: " + avg + "ms, bias: " + (avg - rmean) + "ms";
+                        var resampledData = i ? resampledDiff(unit, test.unitDict[test.groups[0]][0], 1000) : resample(unit, 1000);
+                        resampledData.sort();
+                        var rmean  = mean(resampledData),
+                            median = getWeightedValue(resampledData, 0.5),
+                            lower  = getWeightedValue(resampledData, 0.025),
+                            upper  = getWeightedValue(resampledData, 0.975);
+                        node.innerHTML = "median: " + median + " ms, mean: " + rmean + " ms, lower: " + lower + " ms, upper: " + upper + " ms, CI: -" + (rmean - lower) + "+" + (upper - rmean) + " ms";
                         parent.appendChild(node);
                     }
                 }
             });
 
-            function mean(a){
-                var len = a.length, m = 0;
+            function avg(a){
+                var stats = a.stats, len = stats.length, m = 0;
                 for(var i = 0; i < len; ++i){
-                    m += a[Math.floor(Math.random() * len)] / len;
+                    m += stats[i] / len;
                 }
-                return m;
+                return m / a.reps;
             }
 
-            function meanDiff(a, b){
-                return mean(a) - mean(b);
+            function avgDiff(a, b){
+                return avg(a) - avg(b);
+            }
+
+            function resample(a, n){
+                var stats = a.stats, reps = a.reps, len = stats.length, t = new Array(n);
+                for(var i = 0; i < n; ++i){
+                    var m = 0;
+                    for(var j = 0; j < len; ++j){
+                        m += stats[Math.floor(Math.random() * len)] / len;
+                    }
+                    t[i] = m / reps;
+                }
+                return t;
+            }
+
+            function resampledDiff(a, b, n){
+                var stats1 = a.stats, reps1 = a.reps, len1 = stats1.length,
+                    stats2 = b.stats, reps2 = b.reps, len2 = stats2.length,
+                    t = new Array(n);
+                for(var i = 0; i < n; ++i){
+                    var m1 = 0, m2 = 0;
+                    for(var j = 0; j < len1; ++j){
+                        m1 += stats1[Math.floor(Math.random() * len1)] / len1;
+                    }
+                    for(j = 0; j < len2; ++j){
+                        m2 += stats2[Math.floor(Math.random() * len2)] / len2;
+                    }
+                    t[i] = m1 / reps1 - m2 / reps2;
+                }
+                return t;
             }
 
             function resampledMean(a, n){
-                var m = 0;
+                var stats = a.stats, reps = a.reps, len = stats.length, m = 0;
                 for(var i = 0; i < n; ++i){
-                    m += mean(a) / n;
+                    var t = 0;
+                    for(var j = 0; j < len; ++j){
+                        t += stats[Math.floor(Math.random() * len)] / len;
+                    }
+                    m += t / reps / n;
                 }
                 return m;
             }
 
             function resampledMeanDiff(a, b, n){
-                var m = 0;
-                for(var i = 0; i < n; ++i){
-                    m += meanDiff(a, b) / n;
+                var stats1 = a.stats, reps1 = a.reps, len1 = stats1.length,
+                    stats2 = b.stats, reps2 = b.reps, len2 = stats2.length,
+                    m = 0, t1, t2, i, j;
+                for(i = 0; i < n; ++i){
+                    t1 = 0;
+                    for(j = 0; j < len1; ++j){
+                        t1 += stats1[Math.floor(Math.random() * len1)] / len1;
+                    }
+                    t2 = 0;
+                    for(j = 0; j < len2; ++j){
+                        t2 += stats2[Math.floor(Math.random() * len2)] / len2;
+                    }
+                    m += (t1 / reps1 - t2 / reps2) / n;
                 }
                 return m;
+            }
+
+            function mean(data){
+                var len = data.length, m = 0;
+                for(var i = 0; i < len; ++i){
+                    m += data[i] / len;
+                }
+                return m;
+            }
+
+            function getPercentile(sortedData, value){
+                var lowerIndex = 0, upperIndex = sortedData.length - 1;
+                while(lowerIndex < upperIndex){
+                    var middleIndex = Math.floor((lowerIndex + upperIndex) / 2);
+                    if(sortedData[middleIndex] < value){
+                        lowerIndex = middleIndex + 1;
+                    }else{
+                        upperIndex = middleIndex;
+                    }
+                }
+                return lowerIndex < sortedData.length && value < sortedData[lowerIndex] ?
+                    lowerIndex : (lowerIndex + 1);
+            }
+
+            function getWeightedValue(sortedData, weight){
+                var pos = weight * (sortedData.length - 1),
+                    upperIndex = Math.ceil(pos),
+                    lowerIndex = upperIndex - 1;
+                if(lowerIndex <= 0){
+                    // return first element
+                    return sortedData[0];
+                }
+                if(upperIndex >= sortedData.length){
+                    // return last element
+                    return sortedData[sortedData.length - 1];
+                }
+                // linear approximation
+                return sortedData[lowerIndex] * (upperIndex - pos) + sortedData[upperIndex] * (pos - lowerIndex);
             }
 
             function onLoad(){
