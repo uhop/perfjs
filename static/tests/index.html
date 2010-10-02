@@ -60,8 +60,14 @@ this.group(\n\
                         var rmean  = mean(resampledData),
                             median = getWeightedValue(resampledData, 0.5),
                             lower  = getWeightedValue(resampledData, 0.025),
-                            upper  = getWeightedValue(resampledData, 0.975);
-                        node.innerHTML = "median: " + median + " ms, mean: " + rmean + " ms, lower: " + lower + " ms, upper: " + upper + " ms, CI: -" + (rmean - lower) + "+" + (upper - rmean) + " ms";
+                            upper  = getWeightedValue(resampledData, 0.975),
+                            fmt = prepareFormat(rmean, median, lower, upper, rmean - lower, upper - rmean);
+                        node.innerHTML = "median: " + formatTime(median, fmt) +
+                            ", mean: " + formatTime(rmean, fmt) +
+                            ", lower: " + formatTime(lower, fmt) +
+                            ", upper: " + formatTime(upper, fmt) +
+                            ", CI: -" + formatTime(rmean - lower, fmt) +
+                            " +" + formatTime(upper - rmean, fmt);
                         parent.appendChild(node);
                     }
                 }
@@ -174,6 +180,28 @@ this.group(\n\
                 }
                 // linear approximation
                 return sortedData[lowerIndex] * (upperIndex - pos) + sortedData[upperIndex] * (pos - lowerIndex);
+            }
+
+            var units = ["s", "ms", "&mu;s", "ns", "ps"];
+
+            function prepareFormat(){
+                var mx = -1000, mn = 1000;
+                for(var i = 0; i < arguments.length; ++i){
+                    var p = Math.floor(Math.log(arguments[i]) / Math.LN10);
+                    if(mx < p){
+                        mx = p;
+                    }
+                    if(mn > p){
+                        mn = p;
+                    }
+                }
+                var digits = Math.max(mx - mn + 1, 2), scale = 1;
+                for(i = 0; mx < 0 && i < units.length - 1; ++i, mx+= 3, scale *= 1000);
+                return {scale: scale, precision: digits - mx, unit: units[i]};
+            }
+
+            function formatTime(val, format){
+                return (val * format.scale).toFixed(format.precision).replace(/(\.?0+)$/, "") + " " + format.unit;
             }
 
             function onLoad(){
