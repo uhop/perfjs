@@ -4,7 +4,9 @@
         <title>Testing the bench</title>
         <script src="/js/bench.js"></script>
         <script>
-            //console = {log: function(){}};
+            if(!window.console){
+                console = {log: function(){}};
+            }
             var b = bench(100, 20, 20, 50);
             b.group("*calibration*", new Function);
             b.register(
@@ -61,7 +63,7 @@ this.group(\n\
                             median = getWeightedValue(resampledData, 0.5),
                             lower  = getWeightedValue(resampledData, 0.025),
                             upper  = getWeightedValue(resampledData, 0.975),
-                            fmt = prepareFormat(rmean, median, lower, upper, rmean - lower, upper - rmean);
+                            fmt = prepareFormat([rmean, median, lower, upper, rmean - lower, upper - rmean]);
                         node.innerHTML = "median: " + formatTime(median, fmt) +
                             ", mean: " + formatTime(rmean, fmt) +
                             ", lower: " + formatTime(lower, fmt) +
@@ -184,10 +186,10 @@ this.group(\n\
 
             var units = ["s", "ms", "&mu;s", "ns", "ps"];
 
-            function prepareFormat(){
+            function prepareFormat(data){
                 var mx = -1000, mn = 1000;
-                for(var i = 0; i < arguments.length; ++i){
-                    var p = Math.floor(Math.log(arguments[i]) / Math.LN10);
+                for(var i = 0; i < data.length; ++i){
+                    var p = Math.floor(Math.log(data[i]) / Math.LN10);
                     if(mx < p){
                         mx = p;
                     }
@@ -201,7 +203,7 @@ this.group(\n\
             }
 
             function formatTime(val, format){
-                return (val * format.scale).toFixed(format.precision).replace(/(\.?0+)$/, "") + " " + format.unit;
+                return (val * format.scale).toFixed(format.precision).replace(/\.?0+$/, "") + " " + format.unit;
             }
 
             function onLoad(){

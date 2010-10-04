@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>perf.js</title>
+        <link href="http://gist.github.com/stylesheets/gist/embed.css" rel="stylesheet" type="text/css">
+        <style>
+            .gist {font-size: 9pt;}
+            #input {display: none;}
+            .nogist #input {display: block;}
+            .nogist #main {display: none;}
+        </style>
+        <script>
+            // do we have a parameter?
+            var gist = document.location.hash, gistData, gistCallback = function(){}, t;
+            if(gist){
+                gist = gist.substr(1);
+            }else if(document.referrer){
+                t = /^https?\:\/\/gist\.github\.com\/(.+)$/.exec(document.referrer);
+                if(t && t.length > 1){
+                    gist = t[1];
+                }
+            }
+            if(gist){
+                t = document.createElement("script");
+                t.src = "http://gist.github.com/" + gist + ".json?callback=takeGist";
+                t.async = true;
+                document.documentElement.addChild(t);
+                document.title = "perf.js: gist #" + gist;
+                document.location.hash = gist;
+            }else{
+                document.documentElement.className = "nogist";
+            }
+            function takeGist(data){
+                gistData = data;
+                document.title = "perf.js: gist #" + gist + (data.description ? " - " + data.description : "");
+                t = document.getElementById("header");
+                if(t){
+                    t.innerHTML = "Gist #" + gist + (data.description ? ": " + data.description : "");
+                }
+                t = document.getElementById("container");
+                if(t){
+                    t.innerHTML = data.div;
+                }
+                gistCallback();
+            }
+        </script>
+    </head>
+    <body>
+        <h1 id="header">Gist</h1>
+        <form id="input" action=".">
+            <label>Gist:&nbsp;<input name="gist" type="text"></label>&nbsp;<input type="submit" value="Submit">
+        </form>
+        <div id="main">
+            <div id="container"></div>
+            <div><button disabled="disabled">Run Tests</button></div>
+            <div><textarea readonly="readonly" cols="60" rows="4"></textarea></div>
+            <div id="progress"></div>
+            <div id="table"></div>
+            <div id="charts"></div>
+        </div>
+        <script src="http://ajax.googleapis.com/ajax/libs/dojo/1.5/dojo/dojo.xd.js.uncompressed.js"></script>
+        <script src="js/main.js" async="true"></script>
+    </body>
+</html>
