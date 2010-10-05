@@ -2,8 +2,14 @@
 <html>
     <head>
         <title>Hidden frame to run tests</title>
+        <script>
+            var b = parent.bench;
+            b.writeIncludes();
+
+            function start(){
+                b.run();
+            }
+        </script>
     </head>
-    <body onload="startTests()">
-        <script src="js/Bench.js"></script>
-    </body>
+    <body onload="start()"></body>
 </html>

@@ -1,5 +1,5 @@
 application: perfjs
-version: 1-7-bench
+version: 1-6-bench
 runtime: java
 public_root: /static
 #default_expiration: "15d"

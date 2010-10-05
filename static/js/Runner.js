@@ -7,6 +7,7 @@ perfjs.Runner = function(work, sleep, stopped){
     this.work  = work;
     this.sleep = sleep;
     this.stop  = stopped;
+    this.queue = [];
 };
 
 perfjs.Runner.prototype = {

@@ -39,7 +39,7 @@ dojo.provide("perfjs.format");
     var exp = [0, 0, 0, 0, 3, 3, 6, 6, 6, 9, 9, 9, 12];
     var abbr = "***K**M**B**T";
 
-    function abbrNumber(n, decimals){
+    perfjs.format.abbrNumber = function(n, decimals){
         if(isNaN(n)){
             return "";
         }
@@ -51,5 +51,5 @@ dojo.provide("perfjs.format");
         var digits = Math.min(Math.floor(Math.log(n) / Math.LN10), exp.length - 1),
             e = exp[digits], s = Math.round(n / Math.pow(10, e - decimals)).toFixed(0);
         return putCommasIn(s.slice(0, -decimals).replace(/\.?0+$/, "") + "." + s.slice(-decimals)) + (e && abbr.charAt(e) || "");
-    }
+    };
 })();

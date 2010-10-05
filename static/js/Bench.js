@@ -44,20 +44,20 @@ perfjs.Bench = function(runner, limit, points){
     function calibrateUnit(self, ngroup, nunit){
         var unit = self.unitDict[self.groups[ngroup]][nunit];
         self.runner.queue.push(function(){
-            if(!unit.points && unit.teardown){
+            if(!unit.repeat && unit.teardown){
                 unit.teardown();
             }
             emit(self, "calEnd", self, ngroup, nunit);
         });
-        if(unit.points){
-            unit.reps = unit.points;
+        if(unit.repeat){
+            unit.reps = unit.repeat;
             unit.ms = -1;
         }else{
             self.runner.queue.push(function(){ calibrateUnitOnce(self, ngroup, nunit, 1, 0); });
         }
         self.runner.queue.push(function(){
             emit(self, "calBegin", self, ngroup, nunit);
-            if(!unit.points && unit.startup){
+            if(!unit.repeat && unit.startup){
                 unit.startup();
             }
         });
@@ -87,11 +87,7 @@ perfjs.Bench = function(runner, limit, points){
             }
         );
         for(var i = 0; i < points; ++i){
-            self.runner.queue.push(
-                function(){ emit(self, "pointEnd", self, ngroup, nunit); },
-                function(){ benchmarkUnitOnce(self, ngroup, nunit); },
-                function(){ emit(self, "pointBegin", self, ngroup, nunit); }
-            );
+            self.runner.queue.push(function(){ benchmarkUnitOnce(self, ngroup, nunit); });
         }
         self.runner.queue.push(
             function(){
@@ -191,7 +187,7 @@ perfjs.Bench = function(runner, limit, points){
     }
 
     function reset(){
-        for(var i = 0; i < this.groups; ++i){
+        for(var i = 0; i < this.groups.length; ++i){
             var units = this.unitDict[this.groups[i]];
             for(var j = 0; j < units.length; ++j){
                 units[j].stats = [];

@@ -2,16 +2,24 @@
 <html>
     <head>
         <title>perf.js</title>
-        <link href="http://gist.github.com/stylesheets/gist/embed.css" rel="stylesheet" type="text/css">
+        <link rel="stylesheet" type="text/css" href="http://gist.github.com/stylesheets/gist/embed.css">
+        <!--<link rel="stylesheet" type="text/css" href="http://ajax.googleapis.com/ajax/libs/dojo/1.5/dojo/resources/dojo.css">-->
+        <link rel="stylesheet" type="text/css" href="http://ajax.googleapis.com/ajax/libs/dojo/1.5/dijit/themes/claro/claro.css">
         <style>
             .gist {font-size: 9pt;}
             #input {display: none;}
             .nogist #input {display: block;}
             .nogist #main {display: none;}
+            .error {font-weight: bold; color: #c00;}
+            #table {margin-top: 1em; font-size: 120%;}
+            #table th, #table td {border: 1px solid #ccc; padding: 1pt 3pt;}
+            #progressMsg {margin-top: 1em; font-weight: bold; font-size: 120%;}
+            .fastest {background-color: #cfc;}
+            .right {text-align: right;}
         </style>
         <script>
             // do we have a parameter?
-            var gist = document.location.hash, gistData, gistCallback = function(){}, t;
+            var gist = document.location.hash, gistData, gistCallback = function(){}, bench, t;
             if(gist){
                 gist = gist.substr(1);
             }else if(document.referrer){
@@ -24,7 +32,7 @@
                 t = document.createElement("script");
                 t.src = "http://gist.github.com/" + gist + ".json?callback=takeGist";
                 t.async = true;
-                document.documentElement.addChild(t);
+                document.documentElement.appendChild(t);
                 document.title = "perf.js: gist #" + gist;
                 document.location.hash = gist;
             }else{
@@ -45,7 +53,7 @@
             }
         </script>
     </head>
-    <body>
+    <body class="claro">
         <h1 id="header">Gist</h1>
         <form id="input" action=".">
             <label>Gist:&nbsp;<input name="gist" type="text"></label>&nbsp;<input type="submit" value="Submit">
@@ -53,12 +61,38 @@
         <div id="main">
             <div id="container"></div>
             <div><button disabled="disabled">Run Tests</button></div>
-            <div><textarea readonly="readonly" cols="60" rows="4"></textarea></div>
-            <div id="progress"></div>
-            <div id="table"></div>
+            <div id="display" style="display: none;">
+                <div id="progressMsg"></div>
+                <div id="progressBar"></div>
+                <table id="table" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th rowspan="2">Group</th>
+                            <th rowspan="2">Unit</th>
+                            <th rowspan="2">Median</th>
+                            <th rowspan="2">Mean</th>
+                            <th colspan="2">95% CI</th>
+                            <th rowspan="2">Rank</th>
+                        </tr>
+                        <tr>
+                            <th>From</th>
+                            <th>To</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
             <div id="charts"></div>
         </div>
-        <script src="http://ajax.googleapis.com/ajax/libs/dojo/1.5/dojo/dojo.xd.js.uncompressed.js"></script>
-        <script src="js/main.js" async="true"></script>
+        <script src="http://ajax.googleapis.com/ajax/libs/dojo/1.5/dojo/dojo.xd.js.uncompressed.js"
+                djConfig="baseUrl: './', modulePaths: {perfjs: 'js'}"></script>
+        <script>
+            dojo.require("perfjs.Runner");
+            dojo.require("perfjs.Bench");
+            dojo.require("perfjs.stats");
+            dojo.require("perfjs.format");
+            dojo.require("perfjs.main");
+        </script>
+        <!--<script src="js/layer.js" async="true"></script>-->
     </body>
 </html>
