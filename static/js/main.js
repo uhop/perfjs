@@ -2,6 +2,8 @@ dojo.provide("perfjs.main");
 
 dojo.require("dojo.fx");
 dojo.require("dijit.ProgressBar");
+dojo.require("dojox.charting.Chart2D");
+dojo.require("dojox.charting.themes.Julie");
 
 dojo.require("perfjs.Runner");
 dojo.require("perfjs.Bench");
@@ -67,7 +69,7 @@ dojo.require("perfjs.stats");
         }
     });
 
-    var trMap, progress, glob = d.global;
+    var trMap, progress, glob = d.global, candleChart, histogramCharts;
 
     function wrap(f){
         return function(){
@@ -118,6 +120,17 @@ dojo.require("perfjs.stats");
         d.style("display", "display", "none");
         var tbody = d.query("#table tbody")[0];
         d.empty(tbody);
+        if(candleChart){
+            candleChart.destroy();
+            candleChart = null;
+        }
+        if(histogramCharts){
+            dojo.forEach(histogramCharts, function(chart){
+                chart.destroy();
+            });
+            histogramCharts = null;
+        }
+        d.empty("charts");
         trMap = new Array(test.groups.length);
         for(var i = 1; i < test.groups.length; ++i){
             var name  = test.groups[i],
@@ -189,8 +202,10 @@ dojo.require("perfjs.stats");
     }
 
     function processData(test){
-        var runner = new perfjs.Runner(WORK_SLICE, SLEEP_TIME);
+        var runner = new perfjs.Runner(WORK_SLICE, SLEEP_TIME),
+            stats = [];
         runner.queue.push(function(){
+            showData(test, stats);
             trMap = null;
             d.query("#main button").attr({
                 disabled:  false,
@@ -241,6 +256,7 @@ dojo.require("perfjs.stats");
                             d.create("td", {innerHTML: perfjs.format.formatTime(upper,  fmt)}, tr);
                             d.create("td", {innerHTML: "<em>wait</em>"}, tr);
                             progress.set("value", progress.get("value") + 1);
+                            stats[i].push(resampledData);
                         });
                     })(i, name, j, unit, means);
                 }
@@ -257,9 +273,65 @@ dojo.require("perfjs.stats");
                     d.attr("progressMsg", "innerHTML", (i ? "Processing: " + name : "Calibrating") + "&hellip;");
                     progress.set("value", 0);
                     progress.set("maximum", test.unitDict[name].length);
+                    stats[i] = [];
                 });
             })(i, name);
         }
         runner.run();
+    }
+
+    function showData(test, stats){
+        // prepare data for charting
+        var labels = [{value: 0, text: ""}], candles = [];
+        for(var i = 1; i < stats.length; ++i){
+            var data = stats[i], name = test.groups[i], units = test.unitDict[name];
+            for(var j = 0; j < data.length; ++j){
+                var unit = units[j], runName = name + " - " + unit.name;
+                labels.push({value: labels.length, text: runName});
+                candles.push({
+                    low:   perfjs.stats.getWeightedValue(data[j], 0.025),
+                    open:  perfjs.stats.getWeightedValue(data[j], 0.250),
+                    mid:   perfjs.stats.getWeightedValue(data[j], 0.500),
+                    close: perfjs.stats.getWeightedValue(data[j], 0.750),
+                    high:  perfjs.stats.getWeightedValue(data[j], 0.975)
+                });
+            }
+        }
+        labels.push({value: labels.length, text: ""});
+        // create charts
+        var div = d.create("div", {style: {width: "400px", height: "400px"}}, "charts");
+        candleChart = new dojox.charting.Chart2D(div, {margins: {l: 0, r: 0, t: 20, b: 10}}).
+            setTheme(dojox.charting.themes.Julie).
+            addAxis("x", {fixLower: "major", fixUpper: "major", includeZero: true, natural: true, labels: labels, htmlLabels: false, rotation: -20}).
+            addAxis("y", {vertical: true, fixLower: "major", fixUpper: "major", fixed: false, htmlLabels: false}).
+            addPlot("default", {type: "Candlesticks", gap: 2}).
+            addSeries("Boxplot", candles).
+            render();
+        /*
+        histogramCharts = [];
+        for(var i = 1; i < stats.length; ++i){
+            var data = stats[i], name = test.groups[i], units = test.unitDict[name],
+                mn = Math.min.apply(Math, dojo.map(data, function(d){ return d[0]; })),
+                mx = Math.max.apply(Math, dojo.map(data, function(d, i, unit){ return d[unit.length - 1]; }));
+            div = d.create("div", {style: {width: "400px", height: "200px"}}, "charts");
+            var chart = new dojox.charting.Chart2D(div).
+                setTheme(dojox.charting.themes.Julie).
+                addAxis("x", {fixLower: "major", fixUpper: "major"}).
+                addAxis("y", {vertical: true, fixUpper: "minor", includeZero: true, natural: true}).
+                addPlot("default", {type: "Columns"});
+            for(j = 0; j < data.length; ++j){
+                var bins = new Array(20), prevIndex = 0;
+                for(var k = 0; k < bins.length; ++k){
+                    var u = (mx - mn) / bins.length * (k + 1),
+                        nextIndex = perfjs.stats.getPercentile(data[j], u);
+                    bins[k] = nextIndex - prevIndex;
+                    prevIndex = nextIndex;
+                }
+                chart.addSeries(units[j].name, bins);
+            }
+            chart.render();
+            histogramCharts.push(chart);
+        }
+        */
     }
 })();

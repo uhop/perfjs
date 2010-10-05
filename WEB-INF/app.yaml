@@ -1,5 +1,5 @@
 application: perfjs
-version: 1-6-bench
+version: 1-7-chart
 runtime: java
 public_root: /static
 #default_expiration: "15d"
