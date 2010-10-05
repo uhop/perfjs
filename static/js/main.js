@@ -127,10 +127,10 @@ dojo.require("perfjs.stats");
             for(var j = 0; j < units.length; ++j){
                 var tr = d.create("tr", null, tbody);
                 if(!j){
-                    d.create("td", {rowspan: units.length, innerHTML: name}, tr);
+                    d.create("td", {rowSpan: units.length, innerHTML: name}, tr);
                 }
                 d.create("td", {innerHTML: units[j].name}, tr);
-                d.create("td", {colspan: 5, innerHTML: "<em>not available yet</em>"}, tr);
+                d.create("td", {colSpan: 5, innerHTML: "<em>not available yet</em>"}, tr);
                 trs.push(tr);
             }
         }
@@ -211,7 +211,7 @@ dojo.require("perfjs.stats");
                             var tr = trMap[i][j];
                             if(!indices[j]){
                                 d.query("td", tr).forEach(function(td){
-                                    var rs = d.attr(td, "rowspan");
+                                    var rs = d.attr(td, "rowSpan");
                                     if(!rs || rs == 1){
                                         d.addClass(td, "fastest");
                                     }
