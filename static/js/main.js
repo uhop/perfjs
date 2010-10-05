@@ -303,7 +303,7 @@ dojo.require("perfjs.stats");
         candleChart = new dojox.charting.Chart2D(div, {margins: {l: 0, r: 0, t: 20, b: 10}}).
             setTheme(dojox.charting.themes.Julie).
             addAxis("x", {fixLower: "major", fixUpper: "major", includeZero: true, natural: true, labels: labels, htmlLabels: false, rotation: -20}).
-            addAxis("y", {vertical: true, fixLower: "major", fixUpper: "major", fixed: false, htmlLabels: false}).
+            addAxis("y", {vertical: true, fixLower: "major", fixUpper: "major", htmlLabels: false}).
             addPlot("default", {type: "Candlesticks", gap: 2}).
             addSeries("Boxplot", candles).
             render();
