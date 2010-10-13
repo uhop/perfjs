@@ -1,5 +1,5 @@
 application: perfjs
-version: 1-8-clubajax
+version: 1-9-exception
 runtime: java
 public_root: /static
 #default_expiration: "15d"
