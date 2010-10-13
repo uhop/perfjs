@@ -55,6 +55,7 @@ dojo.provide("perfjs.format");
         }
         var digits = Math.min(Math.floor(Math.log(n) / Math.LN10), exp.length - 1),
             e = exp[digits], s = Math.round(n / Math.pow(10, e - decimals)).toFixed(0);
-        return putCommasIn(s.slice(0, -decimals).replace(/\.?0+$/, "") + "." + s.slice(-decimals)) + (e && abbr.charAt(e) || "");
+        return putCommasIn(s.slice(0, -decimals).replace(/\.?0+$/, "") + "." + s.slice(-decimals)) +
+            (e && abbr.charAt(e) || "");
     };
 })();

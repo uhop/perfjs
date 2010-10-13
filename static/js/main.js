@@ -255,22 +255,24 @@ dojo.require("perfjs.stats");
                     var unit = units[j];
                     (function(i, name, j, unit, means){
                         runner.queue.push(function(){
-                            var resampledData, mean, median, lower, upper, fmt, tr = trMap[i][j];
+                            var resampledData, mean, lower, upper, fmt, tr = trMap[i][j];
                             if(unit.reps > 0){
-                                resampledData = perfjs.stats.resampledDiff(unit, test.unitDict[test.groups[0]][0], RESAMPLE);
-                                resampledData = dojo.map(resampledData, function(x){ return Math.max(x, 0); });
-                                resampledData.sort(function(a, b){ return a - b; });
-                                mean   = means[j] = perfjs.stats.mean(resampledData);
-                                median = perfjs.stats.getWeightedValue(resampledData, 0.5);
-                                lower  = perfjs.stats.getWeightedValue(resampledData, 0.025);
-                                upper  = perfjs.stats.getWeightedValue(resampledData, 0.975);
-                                fmt    = perfjs.format.prepareTimeFormat([mean, median, lower, upper, mean - lower, upper - mean]);
+                                resampledData = perfjs.stats.resampledDiff(unit,
+                                    test.unitDict[test.groups[0]][0], RESAMPLE);
+                                resampledData = dojo.map(resampledData, function(x){ return Math.max(x, 0); }).
+                                    sort(function(a, b){ return a - b; });
+                                mean  = means[j] = perfjs.stats.mean(resampledData);
+                                lower = perfjs.stats.getWeightedValue(resampledData, 0.025);
+                                upper = perfjs.stats.getWeightedValue(resampledData, 0.975);
+                                fmt = perfjs.format.prepareTimeFormat([mean, lower, upper, mean - lower, upper - mean]);
                             }
                             d.destroy(tr.lastChild);
-                            d.create("td", {innerHTML: fmt ? perfjs.format.formatTime(median, fmt) : "N/A", className: "right"}, tr);
-                            d.create("td", {innerHTML: fmt ? perfjs.format.formatTime(mean,   fmt) : "N/A", className: "right"}, tr);
-                            d.create("td", {innerHTML: fmt ? perfjs.format.formatTime(lower,  fmt) : "N/A", className: "right"}, tr);
-                            d.create("td", {innerHTML: fmt ? perfjs.format.formatTime(upper,  fmt) : "N/A", className: "right"}, tr);
+                            d.create("td", {innerHTML: fmt ? perfjs.format.formatTime(mean,   fmt) : "N/A",
+                                className: "right"}, tr);
+                            d.create("td", {innerHTML: fmt ? perfjs.format.formatTime(lower,  fmt) : "N/A",
+                                className: "right"}, tr);
+                            d.create("td", {innerHTML: fmt ? perfjs.format.formatTime(upper,  fmt) : "N/A",
+                                className: "right"}, tr);
                             d.create("td", {innerHTML: fmt ? "<em>wait</em>" : "N/A", className: "center"}, tr);
                             progress.set("value", progress.get("value") + 1);
                             stats[i].push(resampledData);
@@ -312,7 +314,8 @@ dojo.require("perfjs.stats");
         var div = d.create("div", {style: {width: "400px", height: "400px"}}, "charts");
         candleChart = new dojox.charting.Chart2D(div, {margins: {l: 0, r: 0, t: 20, b: 10}}).
             setTheme(dojox.charting.themes.Julie).
-            addAxis("x", {fixLower: "major", fixUpper: "major", includeZero: true, natural: true, labels: labels, htmlLabels: false, rotation: -20}).
+            addAxis("x", {fixLower: "major", fixUpper: "major", includeZero: true, natural: true,
+                labels: labels, htmlLabels: false, rotation: -20}).
             addAxis("y", {vertical: true, fixLower: "major", fixUpper: "minor", htmlLabels: false}).
             addPlot("default", {type: "Candlesticks", gap: 2}).
             addSeries("Boxplot", candles).
