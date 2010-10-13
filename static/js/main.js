@@ -15,7 +15,7 @@ dojo.require("perfjs.stats");
     var WORK_SLICE = 100,   // work slice in ms
         SLEEP_TIME = 20,    // sleep between work slice in ms
         MIN_BENCH  = 20,    // minimal benchmarkable time
-        NUM_POINTS = 50,    // default number of data points
+        NUM_POINTS = 60,    // default number of data points
         RESAMPLE   = 1000;  // resample size
 
     function extract(node){
@@ -220,8 +220,21 @@ dojo.require("perfjs.stats");
             if(i){
                 (function(i, means){
                     runner.queue.push(function(){
-                        var indices = dojo.map(means, function(x, i){ return i; });
-                        indices.sort(function(a, b){ return means[a] < means[b] ? -1 : means[a] > means[b] ? 1 : 0; });
+                        var sortedIndices = dojo.map(means, function(x, i){ return i; }).sort(function(a, b){
+                                a = means[a];
+                                b = means[b];
+                                if(isNaN(a)){
+                                    return isNaN(b) ? 0 : 1;
+                                }
+                                if(isNaN(b)){
+                                    return -1;
+                                }
+                                return a - b;
+                            }),
+                            indices = new Array(sortedIndices.length);
+                        dojo.map(sortedIndices, function(x, i){
+                            indices[x] = i;
+                        });
                         for(j = 0; j < means.length; ++j){
                             var tr = trMap[i][j];
                             if(!indices[j]){
@@ -232,8 +245,9 @@ dojo.require("perfjs.stats");
                                     }
                                 });
                             }
-                            tr.lastChild.innerHTML = indices[j] + 1;
-                            d.addClass(tr.lastChild, "right");
+                            if(!isNaN(means[j])){
+                                tr.lastChild.innerHTML = indices[j] + 1;
+                            }
                         }
                     });
                 })(i, means);
@@ -241,32 +255,28 @@ dojo.require("perfjs.stats");
                     var unit = units[j];
                     (function(i, name, j, unit, means){
                         runner.queue.push(function(){
-                            var resampledData = perfjs.stats.resampledDiff(unit, test.unitDict[test.groups[0]][0], RESAMPLE);
-                            resampledData.sort();
-                            var mean   = means[j] = perfjs.stats.mean(resampledData),
-                                median = perfjs.stats.getWeightedValue(resampledData, 0.5),
-                                lower  = perfjs.stats.getWeightedValue(resampledData, 0.025),
-                                upper  = perfjs.stats.getWeightedValue(resampledData, 0.975),
+                            var resampledData, mean, median, lower, upper, fmt, tr = trMap[i][j];
+                            if(unit.reps > 0){
+                                resampledData = perfjs.stats.resampledDiff(unit, test.unitDict[test.groups[0]][0], RESAMPLE);
+                                resampledData = dojo.map(resampledData, function(x){ return Math.max(x, 0); });
+                                resampledData.sort(function(a, b){ return a - b; });
+                                mean   = means[j] = perfjs.stats.mean(resampledData);
+                                median = perfjs.stats.getWeightedValue(resampledData, 0.5);
+                                lower  = perfjs.stats.getWeightedValue(resampledData, 0.025);
+                                upper  = perfjs.stats.getWeightedValue(resampledData, 0.975);
                                 fmt    = perfjs.format.prepareTimeFormat([mean, median, lower, upper, mean - lower, upper - mean]);
-                            var tr = trMap[i][j];
+                            }
                             d.destroy(tr.lastChild);
-                            d.create("td", {innerHTML: perfjs.format.formatTime(median, fmt)}, tr);
-                            d.create("td", {innerHTML: perfjs.format.formatTime(mean,   fmt)}, tr);
-                            d.create("td", {innerHTML: perfjs.format.formatTime(lower,  fmt)}, tr);
-                            d.create("td", {innerHTML: perfjs.format.formatTime(upper,  fmt)}, tr);
-                            d.create("td", {innerHTML: "<em>wait</em>"}, tr);
+                            d.create("td", {innerHTML: fmt ? perfjs.format.formatTime(median, fmt) : "N/A", className: "right"}, tr);
+                            d.create("td", {innerHTML: fmt ? perfjs.format.formatTime(mean,   fmt) : "N/A", className: "right"}, tr);
+                            d.create("td", {innerHTML: fmt ? perfjs.format.formatTime(lower,  fmt) : "N/A", className: "right"}, tr);
+                            d.create("td", {innerHTML: fmt ? perfjs.format.formatTime(upper,  fmt) : "N/A", className: "right"}, tr);
+                            d.create("td", {innerHTML: fmt ? "<em>wait</em>" : "N/A", className: "center"}, tr);
                             progress.set("value", progress.get("value") + 1);
                             stats[i].push(resampledData);
                         });
                     })(i, name, j, unit, means);
                 }
-            }else{
-                /*
-                runner.queue.push(function(){
-                    var resampledData = perfjs.stats.resample(test.unitDict[test.groups[0]][0], RESAMPLE);
-                    resampledData.sort();
-                });
-                */
             }
             (function(i, name){
                 runner.queue.push(function(){
@@ -288,13 +298,13 @@ dojo.require("perfjs.stats");
             for(var j = 0; j < data.length; ++j){
                 var unit = units[j], runName = name + " - " + unit.name;
                 labels.push({value: labels.length, text: runName});
-                candles.push({
+                candles.push( data[j] ? {
                     low:   perfjs.stats.getWeightedValue(data[j], 0.025),
                     open:  perfjs.stats.getWeightedValue(data[j], 0.250),
                     mid:   perfjs.stats.getWeightedValue(data[j], 0.500),
                     close: perfjs.stats.getWeightedValue(data[j], 0.750),
                     high:  perfjs.stats.getWeightedValue(data[j], 0.975)
-                });
+                } : null);
             }
         }
         labels.push({value: labels.length, text: ""});
@@ -303,7 +313,7 @@ dojo.require("perfjs.stats");
         candleChart = new dojox.charting.Chart2D(div, {margins: {l: 0, r: 0, t: 20, b: 10}}).
             setTheme(dojox.charting.themes.Julie).
             addAxis("x", {fixLower: "major", fixUpper: "major", includeZero: true, natural: true, labels: labels, htmlLabels: false, rotation: -20}).
-            addAxis("y", {vertical: true, fixLower: "major", fixUpper: "major", htmlLabels: false}).
+            addAxis("y", {vertical: true, fixLower: "major", fixUpper: "minor", htmlLabels: false}).
             addPlot("default", {type: "Candlesticks", gap: 2}).
             addSeries("Boxplot", candles).
             render();

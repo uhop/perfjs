@@ -43,9 +43,18 @@ perfjs.Bench = function(runner, limit, points){
 
     function calibrateUnit(self, ngroup, nunit){
         var unit = self.unitDict[self.groups[ngroup]][nunit];
+        if(unit.reps && unit.reps < 0){
+            return;
+        }
         self.runner.queue.push(function(){
-            if(!unit.repeat && unit.teardown){
-                unit.teardown();
+            if(unit.reps > 0){
+                if(!unit.repeat && unit.teardown){
+                    try{
+                        unit.teardown();
+                    }catch(error){
+                        unit.reps = unit.ms = -1;
+                    }
+                }
             }
             emit(self, "calEnd", self, ngroup, nunit);
         });
@@ -57,17 +66,26 @@ perfjs.Bench = function(runner, limit, points){
         }
         self.runner.queue.push(function(){
             emit(self, "calBegin", self, ngroup, nunit);
-            if(!unit.repeat && unit.startup){
-                unit.startup();
+            if(!unit.repeat && unit.setup){
+                try{
+                    unit.setup();
+                }catch(error){
+                    unit.reps = unit.ms = -1;
+                }
             }
         });
     }
 
     function calibrateUnitOnce(self, ngroup, nunit, reps, n){
         var name = self.groups[ngroup],
-            unit = self.unitDict[name][nunit],
-            ms = benchmark(unit.test, reps);
-        if(ms < limit){
+            unit = self.unitDict[name][nunit];
+        if(unit.reps && unit.reps < 0){
+            return;
+        }
+        var ms = benchmark(unit.test, reps);
+        if(ms < 0){
+            unit.reps = unit.ms = -1;
+        }else if(ms < limit){
             reps = n % 3 == 1 ? 5 * (reps >> 1) : reps << 1;
             self.runner.queue.push(function(){ calibrateUnitOnce(self, ngroup, nunit, reps, n + 1); });
         }else{
@@ -80,8 +98,14 @@ perfjs.Bench = function(runner, limit, points){
         var unit = self.unitDict[self.groups[ngroup]][nunit];
         self.runner.queue.push(
             function(){
-                if(unit.teardown){
-                    unit.teardown();
+                if(unit.reps > 0){
+                    if(unit.teardown){
+                        try{
+                            unit.teardown();
+                        }catch(error){
+                            unit.reps = unit.ms = -1;
+                        }
+                    }
                 }
                 emit(self, "unitEnd", self, ngroup, nunit);
             }
@@ -92,8 +116,14 @@ perfjs.Bench = function(runner, limit, points){
         self.runner.queue.push(
             function(){
                 emit(self, "unitBegin", self, ngroup, nunit);
-                if(unit.startup){
-                    unit.startup();
+                if(unit.reps > 0){
+                    if(unit.setup){
+                        try{
+                            unit.setup();
+                        }catch(error){
+                            unit.reps = unit.ms = -1;
+                        }
+                    }
                 }
             }
         );
@@ -103,9 +133,14 @@ perfjs.Bench = function(runner, limit, points){
         var name = self.groups[ngroup],
             unit = self.unitDict[name][nunit];
         emit(self, "pointBegin", self, ngroup, nunit);
-        var ms = benchmark(unit.test, unit.reps);
-        emit(self, "pointEnd", self, ngroup, nunit);
+        if(unit.reps > 0){
+            var ms = benchmark(unit.test, unit.reps);
+            if(ms < 0){
+                unit.reps = unit.ms = -1;
+            }
+        }
         unit.stats.push(ms);
+        emit(self, "pointEnd", self, ngroup, nunit);
     }
 
     function benchmark(fn, reps){
@@ -113,11 +148,15 @@ perfjs.Bench = function(runner, limit, points){
         // fn - function
         // reps - number of repetitions
         // returns total time in ms
-        var start = new Date();
-        for(var i = 0; i < reps; ++i){
-            fn();
+        try{
+            var start = new Date();
+            for(var i = 0; i < reps; ++i){
+                fn();
+            }
+            var end = new Date();
+        }catch(error){
+            return -1;
         }
-        var end = new Date();
         return end.getTime() - start.getTime();
     }
 

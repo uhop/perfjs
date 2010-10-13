@@ -7,12 +7,17 @@ dojo.provide("perfjs.format");
         var mx = -1000, mn = 1000;
         for(var i = 0; i < data.length; ++i){
             var p = Math.floor(Math.log(data[i]) / Math.LN10);
-            if(mx < p){
-                mx = p;
+            if(isFinite(p)){
+                if(mx < p){
+                    mx = p;
+                }
+                if(mn > p){
+                    mn = p;
+                }
             }
-            if(mn > p){
-                mn = p;
-            }
+        }
+        if(mx < mn){
+            mn = mx = -6;
         }
         var digits = Math.max(mx - mn + 1, 2), scale = 1;
         // TODO: get rid of the loop below
