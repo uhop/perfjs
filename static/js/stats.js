@@ -63,6 +63,30 @@ perfjs.stats.resampledMeanDiff = function(a, b, n){
     return m;
 };
 
+perfjs.stats.alternativeStats = function(a, b, n, threshold){
+    // a.length == b.length
+    var t = a.concat(b), over = 0, len = a.length;
+    // the main loop
+    for(var i = 0; i < n; ++i){
+        // shuffle the array
+        for(var j = t.length - 1; j > 1; --j){
+            var k = Math.floor(Math.random() * (j + 1)),
+                x = t[k];
+            t[k] = t[j];
+            t[j] = x;
+        }
+        // calculate mean
+        var m = 0;
+        for(j = 0; j < len; ++j){
+            m += (t[j] - t[j + len]) / len;
+        }
+        if(m >= threshold){
+            ++over;
+        }
+    }
+    return over;
+};
+
 perfjs.stats.mean = function(data){
     // calculating mean
     var len = data.length, m = 0;
