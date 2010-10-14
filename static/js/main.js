@@ -16,7 +16,8 @@ dojo.require("perfjs.stats");
         SLEEP_TIME = 20,    // sleep between work slice in ms
         MIN_BENCH  = 20,    // minimal benchmarkable time
         NUM_POINTS = 60,    // default number of data points
-        RESAMPLE   = 1000;  // resample size
+        RESAMPLE   = 1000,  // resample size
+        CONFIDENCE = 0.05;  // confidence level
 
     function extract(node){
         // collect text
@@ -61,7 +62,7 @@ dojo.require("perfjs.stats");
         d.query("#main button").attr("disabled", false).onclick(d.hitch(window, runBenchmark, text));
     }
 
-    dojo.ready(function(){
+    d.ready(function(){
         if(!gistData){
             gistCallback = prepareGist;
         }else{
@@ -125,7 +126,7 @@ dojo.require("perfjs.stats");
             candleChart = null;
         }
         if(histogramCharts){
-            dojo.forEach(histogramCharts, function(chart){
+            d.forEach(histogramCharts, function(chart){
                 chart.destroy();
             });
             histogramCharts = null;
@@ -202,10 +203,15 @@ dojo.require("perfjs.stats");
     }
 
     function processData(test){
-        var runner = new perfjs.Runner(WORK_SLICE, SLEEP_TIME),
-            stats = [];
+        // create necessary data structures
+        var n = test.groups.length;
+        test.stats = new Array(n);
+        test.sortedIndices = new Array(n);
+        test.indices = new Array(n);
+        // generate tasks
+        var runner = new perfjs.Runner(WORK_SLICE, SLEEP_TIME);
         runner.queue.push(function(){
-            showData(test, stats);
+            showData(test);
             trMap = null;
             d.query("#main button").attr({
                 disabled:  false,
@@ -213,99 +219,118 @@ dojo.require("perfjs.stats");
             });
             d.attr("progressMsg", "innerHTML", "Done");
         });
-        for(var i = test.groups.length - 1; i >= 0; --i){
-            var name  = test.groups[i],
-                units = test.unitDict[name],
-                means = new Array(units.length);
-            if(i){
-                (function(i, means){
-                    runner.queue.push(function(){
-                        var sortedIndices = dojo.map(means, function(x, i){ return i; }).sort(function(a, b){
-                                a = means[a];
-                                b = means[b];
-                                if(isNaN(a)){
-                                    return isNaN(b) ? 0 : 1;
-                                }
-                                if(isNaN(b)){
-                                    return -1;
-                                }
-                                return a - b;
-                            }),
-                            indices = new Array(sortedIndices.length);
-                        dojo.map(sortedIndices, function(x, i){
-                            indices[x] = i;
-                        });
-                        for(j = 0; j < means.length; ++j){
-                            var tr = trMap[i][j];
-                            if(!indices[j]){
-                                d.query("td", tr).forEach(function(td){
-                                    var rs = d.attr(td, "rowSpan");
-                                    if(!rs || rs == 1){
-                                        d.addClass(td, "fastest");
-                                    }
-                                });
-                            }
-                            if(!isNaN(means[j])){
-                                tr.lastChild.innerHTML = indices[j] + 1;
-                            }
-                        }
-                    });
-                })(i, means);
-                for(var j = units.length - 1; j >= 0; --j){
-                    var unit = units[j];
-                    (function(i, name, j, unit, means){
-                        runner.queue.push(function(){
-                            var resampledData, mean, lower, upper, fmt, tr = trMap[i][j];
-                            if(unit.reps > 0){
-                                resampledData = perfjs.stats.resampledDiff(unit,
-                                    test.unitDict[test.groups[0]][0], RESAMPLE);
-                                resampledData = dojo.map(resampledData, function(x){ return Math.max(x, 0); }).
-                                    sort(function(a, b){ return a - b; });
-                                mean  = means[j] = perfjs.stats.mean(resampledData);
-                                lower = perfjs.stats.getWeightedValue(resampledData, 0.025);
-                                upper = perfjs.stats.getWeightedValue(resampledData, 0.975);
-                                fmt = perfjs.format.prepareTimeFormat([mean, lower, upper, mean - lower, upper - mean]);
-                            }
-                            d.destroy(tr.lastChild);
-                            d.create("td", {innerHTML: fmt ? perfjs.format.formatTime(mean,   fmt) : "N/A",
-                                className: "right"}, tr);
-                            d.create("td", {innerHTML: fmt ? perfjs.format.formatTime(lower,  fmt) : "N/A",
-                                className: "right"}, tr);
-                            d.create("td", {innerHTML: fmt ? perfjs.format.formatTime(upper,  fmt) : "N/A",
-                                className: "right"}, tr);
-                            d.create("td", {innerHTML: fmt ? "<em>wait</em>" : "N/A", className: "center"}, tr);
-                            progress.set("value", progress.get("value") + 1);
-                            stats[i].push(resampledData);
-                        });
-                    })(i, name, j, unit, means);
-                }
-            }
-            (function(i, name){
-                runner.queue.push(function(){
-                    d.attr("progressMsg", "innerHTML", (i ? "Processing: " + name : "Calibrating") + "&hellip;");
-                    progress.set("value", 0);
-                    progress.set("maximum", test.unitDict[name].length);
-                    stats[i] = [];
-                });
-            })(i, name);
+        for(var i = n - 1; i > 0; --i){
+            taskCalculateRanks(runner, test, i);
+            taskCalculateStats(runner, test, i);
         }
         runner.run();
     }
 
-    function showData(test, stats){
+    function taskCalculateStats(runner, test, ngroup){
+        var name  = test.groups[ngroup],
+            units = test.unitDict[name];
+        for(var i = units.length - 1; i >= 0; --i){
+            taskCalculateUnitStats(runner, test, ngroup, i);
+        }
+        taskBeginGroupStats(runner, test, ngroup);
+    }
+
+    function taskBeginGroupStats(runner, test, ngroup){
+        var name  = test.groups[ngroup],
+            units = test.unitDict[name];
+        runner.queue.push(function(){
+            d.attr("progressMsg", "innerHTML", "Processing: " + name + "&hellip;");
+            progress.set("value", 0);
+            progress.set("maximum", units.length);
+            test.stats[ngroup] = [];
+        });
+    }
+
+    function taskCalculateUnitStats(runner, test, ngroup, nunit){
+        var name  = test.groups[ngroup],
+            units = test.unitDict[name],
+            unit  = units[nunit];
+        runner.queue.push(function(){
+            var resampledData, mean, lower, upper, fmt, tr = trMap[ngroup][nunit];
+            if(unit.reps > 0){
+                resampledData = perfjs.stats.resampledDiff(unit,
+                    test.unitDict[test.groups[0]][0], RESAMPLE);
+                resampledData = d.map(resampledData, function(x){ return Math.max(x, 0); }).
+                    sort(function(a, b){ return a - b; });
+                //TODO: use tilted confidence intervals and criteria
+                mean  = perfjs.stats.mean(resampledData);
+                lower = perfjs.stats.getWeightedValue(resampledData, CONFIDENCE / 2);
+                upper = perfjs.stats.getWeightedValue(resampledData, 1 - CONFIDENCE / 2);
+                fmt = perfjs.format.prepareTimeFormat([mean, lower, upper, mean - lower, upper - mean]);
+            }
+            d.destroy(tr.lastChild);
+            d.create("td", {innerHTML: fmt ? perfjs.format.formatTime(mean,  fmt) : "N/A",
+                className: "right"}, tr);
+            d.create("td", {innerHTML: fmt ? perfjs.format.formatTime(lower, fmt) : "N/A",
+                className: "right"}, tr);
+            d.create("td", {innerHTML: fmt ? perfjs.format.formatTime(upper, fmt) : "N/A",
+                className: "right"}, tr);
+            d.create("td", {innerHTML: fmt ? "<em>wait</em>" : "N/A", className: "center"}, tr);
+            progress.set("value", progress.get("value") + 1);
+            test.stats[ngroup].push(resampledData);
+        });
+    }
+
+    function taskCalculateRanks(runner, test, ngroup){
+        runner.queue.push(function(){
+            var stats = test.stats[ngroup],
+                means = d.map(stats, function(data){
+                    return data && perfjs.stats.mean(data);
+                });
+            // sort indices
+            test.sortedIndices[ngroup] = d.map(means, function(x, i){ return i; }).sort(function(a, b){
+                a = means[a];
+                b = means[b];
+                if(isNaN(a)){
+                    return isNaN(b) ? 0 : 1;
+                }
+                if(isNaN(b)){
+                    return -1;
+                }
+                return a - b;
+            });
+            // build the reverse map
+            var ind = test.indices[ngroup] = new Array(test.sortedIndices[ngroup].length);
+            d.map(test.sortedIndices[ngroup], function(x, i){
+                ind[x] = i;
+            });
+            // update the table
+            for(j = 0; j < means.length; ++j){
+                var tr = trMap[ngroup][j];
+                if(!ind[j]){
+                    d.query("td", tr).forEach(function(td){
+                        var rs = d.attr(td, "rowSpan");
+                        if(!rs || rs == 1){
+                            d.addClass(td, "fastest");
+                        }
+                    });
+                }
+                if(!isNaN(means[j])){
+                    tr.lastChild.innerHTML = ind[j] + 1;
+                }
+            }
+        });
+    }
+
+    function showData(test){
         // prepare data for charting
         var labels = [{value: 0, text: ""}], candles = [];
-        for(var i = 1; i < stats.length; ++i){
-            var data = stats[i], name = test.groups[i], units = test.unitDict[name];
+        for(var i = 1; i < test.stats.length; ++i){
+            var data = test.stats[i], name = test.groups[i], units = test.unitDict[name];
             for(var j = 0; j < data.length; ++j){
                 var unit = units[j], runName = name + " - " + unit.name;
                 labels.push({value: labels.length, text: runName});
                 candles.push( data[j] ? {
-                    low:   perfjs.stats.getWeightedValue(data[j], 0.025),
+                    low:   perfjs.stats.getWeightedValue(data[j], CONFIDENCE / 2),
                     open:  perfjs.stats.getWeightedValue(data[j], 0.250),
                     mid:   perfjs.stats.getWeightedValue(data[j], 0.500),
                     close: perfjs.stats.getWeightedValue(data[j], 0.750),
-                    high:  perfjs.stats.getWeightedValue(data[j], 0.975)
+                    high:  perfjs.stats.getWeightedValue(data[j], 1 - CONFIDENCE / 2)
                 } : null);
             }
         }
@@ -322,10 +347,10 @@ dojo.require("perfjs.stats");
             render();
         /*
         histogramCharts = [];
-        for(var i = 1; i < stats.length; ++i){
-            var data = stats[i], name = test.groups[i], units = test.unitDict[name],
-                mn = Math.min.apply(Math, dojo.map(data, function(d){ return d[0]; })),
-                mx = Math.max.apply(Math, dojo.map(data, function(d, i, unit){ return d[unit.length - 1]; }));
+        for(var i = 1; i < test.stats.length; ++i){
+            var data = test.stats[i], name = test.groups[i], units = test.unitDict[name],
+                mn = Math.min.apply(Math, d.map(data, function(d){ return d[0]; })),
+                mx = Math.max.apply(Math, d.map(data, function(d, i, unit){ return d[unit.length - 1]; }));
             div = d.create("div", {style: {width: "400px", height: "200px"}}, "charts");
             var chart = new dojox.charting.Chart2D(div).
                 setTheme(dojox.charting.themes.Julie).
