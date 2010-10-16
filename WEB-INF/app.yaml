@@ -1,5 +1,5 @@
 application: perfjs
-version: 1-10-data
+version: 1-11-sign
 runtime: java
 public_root: /static
 #default_expiration: "15d"

@@ -1,6 +1,5 @@
 dojo.provide("perfjs.main");
 
-dojo.require("dojo.fx");
 dojo.require("dijit.ProgressBar");
 dojo.require("dojox.charting.Chart2D");
 dojo.require("dojox.charting.themes.Julie");
@@ -55,19 +54,28 @@ dojo.require("perfjs.stats");
             return true;
         });
         if(!text){
-            d.byId("display").innerHTML = "<p class='error'>ERROR: cannot find file named \"perf.js\"</p>";
-            d.fx.wipeIn({node: "display"}).play();
+            d.byId("errorMsg").innerHTML = "ERROR: cannot find file named \"perf.js\"";
+            d.doc.documentElement.className = "gistError";
             return;
         }
         d.query("#main button").attr("disabled", false).onclick(d.hitch(window, runBenchmark, text));
     }
 
+    function submit(){
+        gist = dojo.query("#input input[type=text]").attr("value");
+        if(gist){
+            d.doc.documentElement.className = "";
+            requestGist();
+        }
+    }
+
     d.ready(function(){
-        if(!gistData){
-            gistCallback = prepareGist;
-        }else{
+        gistCallback = prepareGist;
+        if(gistData){
             prepareGist();
         }
+        submitGist = submit;
+        d.query("#input input[type=submit]").attr("disabled", false);
     });
 
     var trMap, progress, glob = d.global, candleChart, histogramCharts;
@@ -86,8 +94,8 @@ dojo.require("perfjs.stats");
         b.register(text);
         if(b.groups.length == 1){
             d.query("#main button").attr("disabled", true);
-            d.byId("display").innerHTML = "<p class='error'>ERROR: no groups are defined</p>";
-            d.fx.wipeIn({node: "display"}).play();
+            d.byId("errorMsg").innerHTML = "ERROR: no groups are defined";
+            d.doc.documentElement.className = "gistError";
             return;
         }
         // add event handlers
@@ -164,8 +172,7 @@ dojo.require("perfjs.stats");
 
     function onGroupBegin(test, ngroup){
         var name = test.groups[ngroup];
-        d.attr("progressMsg", "innerHTML",
-            (ngroup ? "Collecting: " + name : "Calibrating") + "&hellip;");
+        d.attr("progressMsg", "innerHTML", ngroup ? "Collecting: " + name : "Calibrating&hellip;");
         progress.set("value", 0);
         progress.set("maximum", test.unitDict[name].length * (NUM_POINTS + 1));
     }
@@ -211,7 +218,6 @@ dojo.require("perfjs.stats");
         // generate tasks
         var runner = new perfjs.Runner(WORK_SLICE, SLEEP_TIME);
         runner.queue.push(function(){
-            showData(test);
             trMap = null;
             d.query("#main button").attr({
                 disabled:  false,
@@ -220,6 +226,10 @@ dojo.require("perfjs.stats");
             d.attr("progressMsg", "innerHTML", "Done");
         });
         for(var i = n - 1; i > 0; --i){
+            taskTestSignificance(runner, test, i);
+        }
+        runner.queue.push(function(){ showData(test); });
+        for(i = n - 1; i > 0; --i){
             taskCalculateRanks(runner, test, i);
             taskCalculateStats(runner, test, i);
         }
@@ -232,14 +242,8 @@ dojo.require("perfjs.stats");
         for(var i = units.length - 1; i >= 0; --i){
             taskCalculateUnitStats(runner, test, ngroup, i);
         }
-        taskBeginGroupStats(runner, test, ngroup);
-    }
-
-    function taskBeginGroupStats(runner, test, ngroup){
-        var name  = test.groups[ngroup],
-            units = test.unitDict[name];
         runner.queue.push(function(){
-            d.attr("progressMsg", "innerHTML", "Processing: " + name + "&hellip;");
+            d.attr("progressMsg", "innerHTML", "Processing: " + name);
             progress.set("value", 0);
             progress.set("maximum", units.length);
             test.stats[ngroup] = [];
@@ -261,16 +265,16 @@ dojo.require("perfjs.stats");
                 mean  = perfjs.stats.mean(resampledData);
                 lower = perfjs.stats.getWeightedValue(resampledData, CONFIDENCE / 2);
                 upper = perfjs.stats.getWeightedValue(resampledData, 1 - CONFIDENCE / 2);
-                fmt = perfjs.format.prepareTimeFormat([mean, lower, upper, mean - lower, upper - mean]);
+                fmt = perfjs.format.prepareTimeFormat([mean, lower, upper, mean - lower, upper - mean], 1000); // in ms
             }
             d.destroy(tr.lastChild);
             d.create("td", {innerHTML: fmt ? perfjs.format.formatTime(mean,  fmt) : "N/A",
                 className: "right"}, tr);
-            d.create("td", {innerHTML: fmt ? perfjs.format.formatTime(lower, fmt) : "N/A",
+            d.create("td", {innerHTML: fmt ? "-" + perfjs.format.formatTime(mean - lower, fmt) : "N/A",
                 className: "right"}, tr);
-            d.create("td", {innerHTML: fmt ? perfjs.format.formatTime(upper, fmt) : "N/A",
+            d.create("td", {innerHTML: fmt ? "+" + perfjs.format.formatTime(upper - mean, fmt) : "N/A",
                 className: "right"}, tr);
-            d.create("td", {innerHTML: fmt ? "<em>wait</em>" : "N/A", className: "center"}, tr);
+            d.create("td", {innerHTML: fmt ? "<em>wait</em>" : "N/A", className: "left"}, tr);
             progress.set("value", progress.get("value") + 1);
             test.stats[ngroup].push(resampledData);
         });
@@ -314,6 +318,50 @@ dojo.require("perfjs.stats");
                     tr.lastChild.innerHTML = ind[j] + 1;
                 }
             }
+        });
+    }
+
+    function taskTestSignificance(runner, test, ngroup){
+        var name  = test.groups[ngroup],
+            units = test.unitDict[name];
+        for(var i = units.length - 2; i >= 0; --i){
+            for(var j = units.length - 1; j > i; --j){
+                taskTestPairs(runner, test, ngroup, i, j);
+            }
+        }
+        runner.queue.push(function(){
+            d.attr("progressMsg", "innerHTML", "Significance testing: " + name);
+            progress.set("value", 0);
+            progress.set("maximum", units.length * (units.length - 1) / 2);
+        });
+    }
+
+    function taskTestPairs(runner, test, ngroup, nunit1, nunit2){
+        runner.queue.push(function(){
+            var name = test.groups[ngroup], units = test.unitDict[name],
+                unit1 = units[nunit1], unit2 = units[nunit2], count;
+            if(unit1.reps > 0 && unit2.reps > 0){
+                count = perfjs.stats.alternativeStats(unit1, unit2, RESAMPLE,
+                    perfjs.stats.mean(test.stats[ngroup][nunit1]) - perfjs.stats.mean(test.stats[ngroup][nunit2]));
+                if((Math.min(count, RESAMPLE - count) + 1) / (RESAMPLE + 1) > CONFIDENCE / 2){
+                    // significance test failed
+                    var td1 = trMap[ngroup][nunit1].lastChild, td2 = trMap[ngroup][nunit2].lastChild,
+                        txt1 = td1.innerHTML, txt2 = td2.innerHTML;
+                    if(txt1.slice(-1) == ")"){
+                        txt1 = txt1.slice(0, -1) + ", ";
+                    }else{
+                        txt1 += " (ST failed: ";
+                    }
+                    td1.innerHTML = txt1 + units[nunit2].name + ")";
+                    if(txt2.slice(-1) == ")"){
+                        txt2 = txt2.slice(0, -1) + ", ";
+                    }else{
+                        txt2 += " (ST failed: ";
+                    }
+                    td2.innerHTML = txt2 + units[nunit1].name + ")";
+                }
+            }
+            progress.set("value", progress.get("value") + 1);
         });
     }
 

@@ -8,19 +8,24 @@
         <style>
             .gist {font-size: 9pt;}
             #input {display: none;}
-            .nogist #input {display: block;}
-            .nogist #main {display: none;}
+            .nogist #input, .gistError #input {display: block;}
+            .nogist #main, .gistError #main {display: none;}
+            #errorMsg {display: none;}
+            .gistError #errorMsg {display: block;}
             .error {font-weight: bold; color: #c00;}
             #table {margin-top: 1em; font-size: 120%;}
             #table th, #table td {border: 1px solid #ccc; padding: 1pt 3pt;}
             #progressMsg {margin-top: 1em; font-weight: bold; font-size: 120%;}
             .fastest {background-color: #cfc;}
             .right {text-align: right;}
+            .left {text-align: left;}
             .center {text-align: center;}
+            #container {max-width: 120ex;}
         </style>
         <script>
             // do we have a parameter?
-            var gist = document.location.hash, gistData, gistCallback = function(){}, bench, t;
+            var gist = document.location.hash, gistData, gistCallback = function(){}, submitGist = gistCallback,
+                bench, t, timeout = 15000, timer;
             if(gist){
                 gist = gist.substr(1);
             }else if(document.referrer){
@@ -30,19 +35,30 @@
                 }
             }
             if(gist){
-                t = document.createElement("script");
+                requestGist();
+            }else{
+                document.documentElement.className = "nogist";
+            }
+            function requestGist(){
+                timer = setTimeout(takeGist, timeout);
+                var t = document.createElement("script");
                 t.src = "http://gist.github.com/" + gist + ".json?callback=takeGist";
                 t.async = true;
                 document.documentElement.appendChild(t);
                 document.title = "perf.js: gist #" + gist;
                 document.location.hash = gist;
-            }else{
-                document.documentElement.className = "nogist";
             }
             function takeGist(data){
+                clearTimeout(timer);
+                timer = null;
+                if(!data || data.error){
+                    document.getElementById("errorMsg").innerHTML = "ERROR: cannot retrieve gist";
+                    document.documentElement.className = "gistError";
+                    return;
+                }
                 gistData = data;
                 document.title = "perf.js: gist #" + gist + (data.description ? " - " + data.description : "");
-                t = document.getElementById("header");
+                var t = document.getElementById("header");
                 if(t){
                     t.innerHTML = "Gist #" + gist + (data.description ? ": " + data.description : "");
                 }
@@ -56,11 +72,13 @@
     </head>
     <body class="claro">
         <h1 id="header">Gist</h1>
-        <form id="input" action=".">
-            <label>Gist:&nbsp;<input name="gist" type="text"></label>&nbsp;<input type="submit" value="Submit">
+        <form id="input" action="." onsubmit="submitGist(); return false">
+            <label>Gist:&nbsp;<input name="gist" type="text"></label>&nbsp;
+            <input type="submit" value="Submit" disabled="disabled">
         </form>
+        <p id="errorMsg" class="error">Cannot retrieve gist.</p>
+        <div id="container"></div>
         <div id="main">
-            <div id="container"></div>
             <div><button disabled="disabled">Run Tests</button></div>
             <div id="display" style="display: none;">
                 <div id="progressMsg"></div>
@@ -68,15 +86,11 @@
                 <table id="table" cellspacing="0">
                     <thead>
                         <tr>
-                            <th rowSpan="2">Group</th>
-                            <th rowSpan="2">Unit</th>
-                            <th rowSpan="2">Mean</th>
+                            <th>Group</th>
+                            <th>Unit</th>
+                            <th>Mean</th>
                             <th colSpan="2">95% CI</th>
-                            <th rowSpan="2">Rank</th>
-                        </tr>
-                        <tr>
-                            <th>From</th>
-                            <th>To</th>
+                            <th>Rank</th>
                         </tr>
                     </thead>
                     <tbody></tbody>

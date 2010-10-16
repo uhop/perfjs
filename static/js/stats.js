@@ -64,8 +64,9 @@ perfjs.stats.resampledMeanDiff = function(a, b, n){
 };
 
 perfjs.stats.alternativeStats = function(a, b, n, threshold){
-    // a.length == b.length
-    var t = a.concat(b), over = 0, len = a.length;
+    // a.stats.length == b.stats.length
+    var over = 0, len = a.stats.length, reps1 = a.reps, reps2 = b.reps,
+        t = dojo.map(a.stats, function(x){ return x / reps1; }).concat(dojo.map(b.stats, function(x){ return x / reps2; }));
     // the main loop
     for(var i = 0; i < n; ++i){
         // shuffle the array

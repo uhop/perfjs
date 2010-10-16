@@ -3,10 +3,11 @@ dojo.provide("perfjs.format");
 (function(){
     var units = ["s", "ms", "&mu;s", "ns", "ps"];
 
-    perfjs.format.prepareTimeFormat = function(data){
+    perfjs.format.prepareTimeFormat = function(data, scale){
         var mx = -1000, mn = 1000;
+        scale = scale || 1;
         for(var i = 0; i < data.length; ++i){
-            var p = Math.floor(Math.log(data[i]) / Math.LN10);
+            var p = Math.floor(Math.log(data[i] / scale) / Math.LN10);
             if(isFinite(p)){
                 if(mx < p){
                     mx = p;
@@ -19,7 +20,8 @@ dojo.provide("perfjs.format");
         if(mx < mn){
             mn = mx = -6;
         }
-        var digits = Math.max(mx - mn + 1, 2), scale = 1;
+        var digits = Math.max(mx - mn + 1, 2);
+        scale = 1 / scale;
         // TODO: get rid of the loop below
         for(i = 0; mx < 0 && i < units.length - 1; ++i, mx+= 3, scale *= 1000);
         return {scale: scale, precision: digits - mx, unit: units[i]};
