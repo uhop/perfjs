@@ -44,6 +44,15 @@ dojo.require("perfjs.stats");
     }
 
     function prepareGist(){
+        // show gist
+        var t = d.byId("header");
+        if(t){
+            t.innerHTML = "Gist #" + gist + (gistData.description ? ": " + gistData.description : "");
+        }
+        t = d.byId("container");
+        if(t){
+            t.innerHTML = gistData.div;
+        }
         // retrieve gist
         var text;
         d.query("#container .gist-file pre").some(function(node, index){

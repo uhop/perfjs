@@ -58,14 +58,6 @@
                 }
                 gistData = data;
                 document.title = "perf.js: gist #" + gist + (data.description ? " - " + data.description : "");
-                var t = document.getElementById("header");
-                if(t){
-                    t.innerHTML = "Gist #" + gist + (data.description ? ": " + data.description : "");
-                }
-                t = document.getElementById("container");
-                if(t){
-                    t.innerHTML = data.div;
-                }
                 gistCallback();
             }
         </script>
