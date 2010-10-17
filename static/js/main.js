@@ -1,8 +1,6 @@
 dojo.provide("perfjs.main");
 
 dojo.require("dijit.ProgressBar");
-dojo.require("dojox.charting.Chart2D");
-dojo.require("dojox.charting.themes.Julie");
 
 dojo.require("perfjs.Runner");
 dojo.require("perfjs.Bench");
@@ -375,33 +373,37 @@ dojo.require("perfjs.stats");
     }
 
     function showData(test){
-        // prepare data for charting
-        var labels = [{value: 0, text: ""}], candles = [];
-        for(var i = 1; i < test.stats.length; ++i){
-            var data = test.stats[i], name = test.groups[i], units = test.unitDict[name];
-            for(var j = 0; j < data.length; ++j){
-                var unit = units[j], runName = name + " - " + unit.name;
-                labels.push({value: labels.length, text: runName});
-                candles.push( data[j] ? {
-                    low:   perfjs.stats.getWeightedValue(data[j], CONFIDENCE / 2),
-                    open:  perfjs.stats.getWeightedValue(data[j], 0.250),
-                    mid:   perfjs.stats.getWeightedValue(data[j], 0.500),
-                    close: perfjs.stats.getWeightedValue(data[j], 0.750),
-                    high:  perfjs.stats.getWeightedValue(data[j], 1 - CONFIDENCE / 2)
-                } : null);
+        dojo["require"]("dojox.charting.Chart2D");
+        dojo["require"]("dojox.charting.themes.Julie");
+        dojo.ready(function(){
+            // prepare data for charting
+            var labels = [{value: 0, text: ""}], candles = [];
+            for(var i = 1; i < test.stats.length; ++i){
+                var data = test.stats[i], name = test.groups[i], units = test.unitDict[name];
+                for(var j = 0; j < data.length; ++j){
+                    var unit = units[j], runName = name + " - " + unit.name;
+                    labels.push({value: labels.length, text: runName});
+                    candles.push( data[j] ? {
+                        low:   perfjs.stats.getWeightedValue(data[j], CONFIDENCE / 2),
+                        open:  perfjs.stats.getWeightedValue(data[j], 0.250),
+                        mid:   perfjs.stats.getWeightedValue(data[j], 0.500),
+                        close: perfjs.stats.getWeightedValue(data[j], 0.750),
+                        high:  perfjs.stats.getWeightedValue(data[j], 1 - CONFIDENCE / 2)
+                    } : null);
+                }
             }
-        }
-        labels.push({value: labels.length, text: ""});
-        // create charts
-        var div = d.create("div", {style: {width: "400px", height: "400px"}}, "charts");
-        candleChart = new dojox.charting.Chart2D(div, {margins: {l: 0, r: 0, t: 20, b: 10}}).
-            setTheme(dojox.charting.themes.Julie).
-            addAxis("x", {natural: true, labels: labels, htmlLabels: false, rotation: -20,
-                min: 0.5, max: candles.length + 0.5}).
-            addAxis("y", {vertical: true, fixLower: "major", fixUpper: "minor", htmlLabels: false}).
-            addPlot("default", {type: "Candlesticks", gap: 2}).
-            addSeries("Boxplot", candles).
-            render();
+            labels.push({value: labels.length, text: ""});
+            // create charts
+            var div = d.create("div", {style: {width: "400px", height: "400px"}}, "charts");
+            candleChart = new dojox.charting.Chart2D(div, {margins: {l: 0, r: 0, t: 20, b: 10}}).
+                setTheme(dojox.charting.themes.Julie).
+                addAxis("x", {natural: true, labels: labels, htmlLabels: false, rotation: -20,
+                    min: 0.5, max: candles.length + 0.5}).
+                addAxis("y", {vertical: true, fixLower: "major", fixUpper: "minor", htmlLabels: false}).
+                addPlot("default", {type: "Candlesticks", gap: 2}).
+                addSeries("Boxplot", candles).
+                render();
+        });
         /*
         histogramCharts = [];
         for(var i = 1; i < test.stats.length; ++i){
