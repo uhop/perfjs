@@ -6,7 +6,7 @@
         <!--<link rel="stylesheet" type="text/css" href="http://ajax.googleapis.com/ajax/libs/dojo/1.5/dojo/resources/dojo.css">-->
         <link rel="stylesheet" type="text/css" href="http://ajax.googleapis.com/ajax/libs/dojo/1.5/dijit/themes/claro/claro.css">
         <style>
-            .gist {font-size: 9pt;}
+            .gist {font-size: 8pt;}
             #input {display: none;}
             .nogist #input, .gistError #input {display: block;}
             .nogist #main, .gistError #main {display: none;}
@@ -21,6 +21,7 @@
             .left {text-align: left;}
             .center {text-align: center;}
             #container {max-width: 120ex;}
+            .footnote {font-size: 8pt; color: #888; max-width: 80ex;}
         </style>
         <script>
             // do we have a parameter?
@@ -87,6 +88,13 @@
                     </thead>
                     <tbody></tbody>
                 </table>
+                <div class="footnote"><sup>1</sup>&nbsp;<strong>CI</strong>&nbsp;&mdash;&nbsp;confidence interval for
+                    mean.</div>
+                <div class="footnote"><sup>2</sup>&nbsp;<strong>ST</strong>&nbsp;&mdash;&nbsp;significance test to
+                    ensure that a difference between two test units is<br>statistically significant and unlikely to occur
+                    by chance.</div>
+                <div class="footnote"><sup>3</sup>&nbsp;All tests including confidence intervals and significance
+                    assume 95% confidence level.</div>
             </div>
             <div id="charts"></div>
         </div>
