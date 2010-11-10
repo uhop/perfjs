@@ -65,7 +65,10 @@ dojo.require("perfjs.stats");
             d.doc.documentElement.className = "gistError";
             return;
         }
-        d.query("#main button").attr("disabled", false).onclick(d.hitch(window, runBenchmark, text));
+        d.query("#main button").attr({
+            disabled: false,
+            innerHTML: "Run Tests"
+        }).onclick(d.hitch(window, runBenchmark, text));
     }
 
     function submit(){
@@ -98,7 +101,14 @@ dojo.require("perfjs.stats");
         var runner = new perfjs.Runner(WORK_SLICE, SLEEP_TIME),
             b = bench = perfjs.Bench(runner, MIN_BENCH, NUM_POINTS);
         b.group("-*calibration*-", new Function);
-        b.register(text);
+        try{
+            b.register(text);
+        }catch(e){
+            d.query("#main button").attr("disabled", true);
+            d.byId("errorMsg").innerHTML = "ERROR: gist contains errors";
+            d.doc.documentElement.className = "gistError";
+            return;
+        }
         if(b.groups.length == 1){
             d.query("#main button").attr("disabled", true);
             d.byId("errorMsg").innerHTML = "ERROR: no groups are defined";

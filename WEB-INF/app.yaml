@@ -1,5 +1,5 @@
 application: perfjs
-version: 1-12-opera
+version: 1-13-syntax
 runtime: java
 public_root: /static
 #default_expiration: "15d"
