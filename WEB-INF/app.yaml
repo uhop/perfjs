@@ -1,9 +1,10 @@
-application: perfjs
+application: perfjs-hrd
 version: 1-13-syntax
 runtime: java
 public_root: /static
 #default_expiration: "15d"
 #sessions_enabled: true
+threadsafe: false
 
 static_files:
   - exclude: tests/*
